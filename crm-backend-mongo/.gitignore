@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Environment templates are safe to commit
+.env.*
+!.env.example
+coverage/
+*.tsbuildinfo
