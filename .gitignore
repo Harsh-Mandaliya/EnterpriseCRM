@@ -14,5 +14,3 @@ build/
 EnterpriseCRM-Pro-Final/
 *.zip
 
-# Local tooling
-.claude/
