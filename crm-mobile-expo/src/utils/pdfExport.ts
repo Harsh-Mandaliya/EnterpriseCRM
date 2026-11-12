@@ -9,18 +9,17 @@ import * as Sharing from 'expo-sharing';
    The web build uses pdfExport.web.ts instead (Metro picks the
    .web.ts file automatically).
 
-   Uses the SDK 58 File / Directory API. The previous version used
-   "expo-file-system/legacy", whose native module can be missing at
-   runtime, so moving the file threw and the user only saw
-   "Could not create the PDF".
+   expo-print writes its PDF into a folder this app is NOT allowed to
+   read with the SDK 58 file API inside Expo Go ("Missing 'READ'
+   permission"), which left 0-byte files and "Could not create the
+   PDF". So the printer now returns the PDF as base64 data and the app
+   writes that data itself:
 
-   1. expo-print renders the HTML into a real PDF file (the only step
-      allowed to fail the export).
-   2. Best effort: copy it to a readable name (INV-0004.pdf).
-   3. Android: save into the folder the user picked once (Downloads),
-      remembered for next time.
-   4. If saving isn't possible (iOS, folder not chosen, permission
-      gone), open the share sheet ("Save to Files", WhatsApp, Mail…).
+   1. expo-print renders the PDF and returns its bytes (base64).
+   2. The bytes are written to the app's own cache as INV-0004.pdf.
+   3. Android: the bytes are also written into the folder the user
+      picked once (e.g. Downloads), remembered for next time.
+   4. Otherwise (iOS, no folder) the share sheet opens with the file.
 ============================================================ */
 
 export type PdfResult = 'downloaded' | 'saved' | 'shared';
@@ -33,32 +32,24 @@ export function safePdfName(fileName: string): string {
 }
 
 function warn(step: string, err: unknown) {
-  // Visible in the Expo terminal; never shown as a failure to the user.
+  // Visible in the Expo terminal.
   console.warn(`[PDF] ${step} failed:`, err instanceof Error ? err.message : err);
 }
 
-/** Copies the generated file to a readable name; returns the original on failure. */
-async function withReadableName(source: File, name: string): Promise<File> {
+/** Writes the PDF bytes to the app's own cache so it can be shared. */
+async function writeToCache(base64: string, name: string): Promise<File | null> {
   try {
-    const target = new File(Paths.cache, name);
-    if (target.exists) target.delete();
-    await source.copy(target);
-    return target;
+    const file = new File(Paths.cache, name);
+    file.create({ overwrite: true });
+    await file.write(base64, { encoding: 'base64' });
+    return file;
   } catch (err) {
-    warn('rename', err);
-    return source;
+    warn('write to app cache', err);
+    return null;
   }
 }
 
-async function share(file: File, name: string): Promise<void> {
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: name, UTI: 'com.adobe.pdf' });
-  } else {
-    Alert.alert('PDF ready', `${name} was created, but sharing is not available on this device.`);
-  }
-}
-
-async function pickDownloadsFolder(): Promise<Directory | null> {
+async function chosenFolder(): Promise<Directory | null> {
   const saved = await SecureStore.getItemAsync(DIR_KEY).catch(() => null);
   if (saved) {
     try {
@@ -74,42 +65,56 @@ async function pickDownloadsFolder(): Promise<Directory | null> {
     await SecureStore.setItemAsync(DIR_KEY, dir.uri).catch(() => undefined);
     return dir;
   } catch (err) {
-    warn('pick folder', err); // user cancelled or not supported
+    warn('pick folder', err); // cancelled or not supported
     return null;
   }
 }
 
-/** Android: writes the PDF into the chosen folder. */
-async function saveToFolder(file: File, name: string): Promise<boolean> {
-  const dir = await pickDownloadsFolder();
+/** Android: writes the PDF bytes into the chosen folder (e.g. Downloads). */
+async function saveToFolder(base64: string, name: string): Promise<boolean> {
+  const dir = await chosenFolder();
   if (!dir) return false;
+  let out: File | null = null;
   try {
-    const out = dir.createFile(name.replace(/\.pdf$/i, ''), 'application/pdf');
-    await out.write(await file.bytes());
+    out = dir.createFile(name.replace(/\.pdf$/i, ''), 'application/pdf');
+    await out.write(base64, { encoding: 'base64' });
     return true;
   } catch (err) {
     warn('save to folder', err);
-    // Permission revoked or folder gone: ask again next time.
+    // Never leave an empty 0-byte PDF behind.
+    try {
+      out?.delete();
+    } catch {
+      /* ignore */
+    }
     await SecureStore.deleteItemAsync(DIR_KEY).catch(() => undefined);
     return false;
   }
 }
 
+async function share(uri: string, name: string): Promise<void> {
+  if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device');
+  await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: name, UTI: 'com.adobe.pdf' });
+}
+
 export async function exportPdf(html: string, fileName: string): Promise<PdfResult> {
   const name = safePdfName(fileName);
 
-  // The only step that can make the export fail.
-  const { uri } = await Print.printToFileAsync({ html });
-  const file = await withReadableName(new File(uri), name);
+  const printed = await Print.printToFileAsync({ html, base64: true });
+  const base64 = printed.base64;
+  if (!base64) throw new Error('The PDF could not be generated.');
 
-  if (Platform.OS === 'android' && (await saveToFolder(file, name))) {
-    Alert.alert('PDF downloaded', `${name} is saved in the folder you chose (Downloads).`, [
-      { text: 'Share', onPress: () => void share(file, name).catch(err => warn('share', err)) },
-      { text: 'OK', style: 'cancel' },
+  const local = await writeToCache(base64, name);
+
+  if (Platform.OS === 'android' && (await saveToFolder(base64, name))) {
+    Alert.alert('PDF downloaded', `${name} is saved in the folder you chose.`, [
+      ...(local ? [{ text: 'Share', onPress: () => void share(local.uri, name).catch(err => warn('share', err)) }] : []),
+      { text: 'OK', style: 'cancel' as const },
     ]);
     return 'saved';
   }
 
-  await share(file, name);
+  // iOS, or no folder: hand the file to the share sheet ("Save to Files", WhatsApp…).
+  await share(local?.uri ?? printed.uri, name);
   return 'shared';
 }
