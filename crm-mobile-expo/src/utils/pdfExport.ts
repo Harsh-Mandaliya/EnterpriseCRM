@@ -1,5 +1,5 @@
 import { Alert, Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
@@ -9,12 +9,18 @@ import * as Sharing from 'expo-sharing';
    The web build uses pdfExport.web.ts instead (Metro picks the
    .web.ts file automatically).
 
-   1. expo-print renders the HTML into a real PDF file.
-   2. The file gets a readable name (INV-0004.pdf).
-   3. Android: saved into the Downloads folder the user picked once
-      (remembered); then they can also share it.
-      iOS / no folder: the share sheet opens ("Save to Files",
-      WhatsApp, Mail…).
+   Uses the SDK 58 File / Directory API. The previous version used
+   "expo-file-system/legacy", whose native module can be missing at
+   runtime, so moving the file threw and the user only saw
+   "Could not create the PDF".
+
+   1. expo-print renders the HTML into a real PDF file (the only step
+      allowed to fail the export).
+   2. Best effort: copy it to a readable name (INV-0004.pdf).
+   3. Android: save into the folder the user picked once (Downloads),
+      remembered for next time.
+   4. If saving isn't possible (iOS, folder not chosen, permission
+      gone), open the share sheet ("Save to Files", WhatsApp, Mail…).
 ============================================================ */
 
 export type PdfResult = 'downloaded' | 'saved' | 'shared';
@@ -26,64 +32,84 @@ export function safePdfName(fileName: string): string {
   return `${base || 'document'}.pdf`;
 }
 
-async function shareFile(uri: string, name: string): Promise<void> {
+function warn(step: string, err: unknown) {
+  // Visible in the Expo terminal; never shown as a failure to the user.
+  console.warn(`[PDF] ${step} failed:`, err instanceof Error ? err.message : err);
+}
+
+/** Copies the generated file to a readable name; returns the original on failure. */
+async function withReadableName(source: File, name: string): Promise<File> {
+  try {
+    const target = new File(Paths.cache, name);
+    if (target.exists) target.delete();
+    await source.copy(target);
+    return target;
+  } catch (err) {
+    warn('rename', err);
+    return source;
+  }
+}
+
+async function share(file: File, name: string): Promise<void> {
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: name, UTI: 'com.adobe.pdf' });
+    await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: name, UTI: 'com.adobe.pdf' });
   } else {
     Alert.alert('PDF ready', `${name} was created, but sharing is not available on this device.`);
   }
 }
 
-async function androidDownloadsDir(): Promise<string | null> {
+async function pickDownloadsFolder(): Promise<Directory | null> {
   const saved = await SecureStore.getItemAsync(DIR_KEY).catch(() => null);
-  if (saved) return saved;
-  const SAF = FileSystem.StorageAccessFramework;
-  const permission = await SAF.requestDirectoryPermissionsAsync(SAF.getUriForDirectoryInRoot('Download'));
-  if (!permission.granted) return null;
-  await SecureStore.setItemAsync(DIR_KEY, permission.directoryUri).catch(() => undefined);
-  return permission.directoryUri;
+  if (saved) {
+    try {
+      return new Directory(saved);
+    } catch (err) {
+      warn('open saved folder', err);
+      await SecureStore.deleteItemAsync(DIR_KEY).catch(() => undefined);
+    }
+  }
+  try {
+    const dir = await Directory.pickDirectoryAsync();
+    if (!dir?.uri) return null;
+    await SecureStore.setItemAsync(DIR_KEY, dir.uri).catch(() => undefined);
+    return dir;
+  } catch (err) {
+    warn('pick folder', err); // user cancelled or not supported
+    return null;
+  }
 }
 
-async function saveToAndroidDownloads(localUri: string, name: string): Promise<boolean> {
-  const SAF = FileSystem.StorageAccessFramework;
-  const dir = await androidDownloadsDir();
+/** Android: writes the PDF into the chosen folder. */
+async function saveToFolder(file: File, name: string): Promise<boolean> {
+  const dir = await pickDownloadsFolder();
   if (!dir) return false;
-  const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
-  let target: string;
   try {
-    target = await SAF.createFileAsync(dir, name.replace(/\.pdf$/i, ''), 'application/pdf');
-  } catch {
-    // Folder permission was revoked: forget it and ask again next time.
+    const out = dir.createFile(name.replace(/\.pdf$/i, ''), 'application/pdf');
+    await out.write(await file.bytes());
+    return true;
+  } catch (err) {
+    warn('save to folder', err);
+    // Permission revoked or folder gone: ask again next time.
     await SecureStore.deleteItemAsync(DIR_KEY).catch(() => undefined);
     return false;
   }
-  await FileSystem.writeAsStringAsync(target, base64, { encoding: FileSystem.EncodingType.Base64 });
-  return true;
 }
 
 export async function exportPdf(html: string, fileName: string): Promise<PdfResult> {
   const name = safePdfName(fileName);
+
+  // The only step that can make the export fail.
   const { uri } = await Print.printToFileAsync({ html });
+  const file = await withReadableName(new File(uri), name);
 
-  // Give the file a readable name before saving or sharing it.
-  let file = uri;
-  if (FileSystem.cacheDirectory) {
-    file = `${FileSystem.cacheDirectory}${name}`;
-    await FileSystem.deleteAsync(file, { idempotent: true });
-    await FileSystem.moveAsync({ from: uri, to: file });
+  if (Platform.OS === 'android' && (await saveToFolder(file, name))) {
+    Alert.alert('PDF downloaded', `${name} is saved in the folder you chose (Downloads).`, [
+      { text: 'Share', onPress: () => void share(file, name).catch(err => warn('share', err)) },
+      { text: 'OK', style: 'cancel' },
+    ]);
+    return 'saved';
   }
 
-  if (Platform.OS === 'android') {
-    const saved = await saveToAndroidDownloads(file, name).catch(() => false);
-    if (saved) {
-      Alert.alert('PDF downloaded', `${name} is saved in your Downloads folder.`, [
-        { text: 'Share', onPress: () => void shareFile(file, name) },
-        { text: 'OK', style: 'cancel' },
-      ]);
-      return 'saved';
-    }
-  }
-
-  await shareFile(file, name);
+  await share(file, name);
   return 'shared';
 }

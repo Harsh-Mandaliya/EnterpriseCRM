@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 jest.mock('expo-print', () => ({ printToFileAsync: jest.fn() }));
 jest.mock('expo-sharing', () => ({ isAvailableAsync: jest.fn(), shareAsync: jest.fn() }));
-jest.mock('expo-file-system/legacy', () => ({ cacheDirectory: 'file:///cache/', StorageAccessFramework: {}, EncodingType: { Base64: 'base64' } }));
+jest.mock('expo-file-system', () => ({ File: class {}, Directory: class {}, Paths: { cache: {} } }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 
 import { breakpointsFor } from '@/hooks/useResponsive';
