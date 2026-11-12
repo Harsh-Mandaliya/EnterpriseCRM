@@ -13,7 +13,7 @@ Every request is first scoped to the caller's company, which is read from the da
 | MANAGER leading no team | Every record in the company (pre-teams behaviour — assign a team to restrict) |
 | SALES, EMPLOYEE | Only their own records |
 
-"Owned" means: leads → `assignedToId`; deals → `ownerId`; customers → `ownerId` **or** listed in `sharedWithIds`; invoices → created by a visible user **or** for a visible customer; payments → on a visible invoice; calendar edits → `createdById` (the calendar itself is readable by everyone in the company).
+"Owned" means: leads → `assignedToId`; deals → `ownerId`; customers → `ownerId` **or** listed in `sharedWithIds`; invoices → created by a visible user **or** for a visible customer; payments → on a visible invoice; tasks → `assignedToId` **or** `createdById`; calendar edits → `createdById`; calendar reading (v1.4) → events created by Owner/Admin (company events) **or** by a visible user **or** where the user is an attendee; work log / team performance → actions by visible users.
 
 ## Matrix
 
@@ -35,9 +35,13 @@ Legend: ✅ allowed · 🔍 within scope (above) · ❌ denied (403, or 404 for 
 | **Invoices** view | ✅ | ✅ | 🔍 | 🔍 | 🔍 |
 | Invoices create / edit / status / delete | ✅ | ✅ | 🔍 | 🔍 | ❌ |
 | **Payments** view / record | ✅ | ✅ | 🔍 | 🔍 | 🔍 / ❌ |
-| **Activities / tasks** view / create / complete | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Activities / tasks** view / complete (v1.4: own / team scope) | ✅ | ✅ | 🔍 | 🔍 | 🔍 |
+| Activities / tasks create | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Activities edit / delete | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Calendar** view / create | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Calendar** view (v1.4: company events + own/team + invited) | ✅ | ✅ | 🔍 | 🔍 | 🔍 |
+| Calendar create | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Reports: receivables, team performance, work log; AI deal insights & briefing; Alerts "needs attention" (v1.4) | ✅ | ✅ | 🔍 | 🔍 | 🔍 |
+| Company billing details (printed on bills) edit | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Calendar edit / delete | ✅ | ✅ | 🔍 | 🔍 | 🔍 |
 | **Notifications** (own only) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Reports**, AI lead scores / forecast / insights | ✅ | ✅ | 🔍 ³ | ❌ | ❌ |

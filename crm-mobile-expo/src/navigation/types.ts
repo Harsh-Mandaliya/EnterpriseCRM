@@ -92,4 +92,10 @@ export type AppStackParamList = {
   /* Visual pipeline & analytics (v1.3) */
   Pipeline: undefined;
   Analytics: undefined;
+
+  /* v1.4 */
+  InvoiceDetail: { invoiceId: string };
+  /** Team activity & performance; with a target it shows that record's history. */
+  TeamActivity: { targetType?: 'Lead' | 'Opportunity' | 'Customer' | 'Invoice'; targetId?: string; title?: string } | undefined;
+  CompanyBilling: undefined;
 };

@@ -1,1648 +1,408 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-
-import {
-  getLeadScores,
-  getSalesForecast,
-  getNextBestActions,
+  getBriefing,
   getCustomerInsights,
+  getDealInsights,
+  getLeadScores,
+  getNextBestActions,
+  getSalesForecast,
+  type Briefing,
+  type DealInsight,
 } from '@/api/ai.api';
+import { BarChart } from '@/components/charts/BarChart';
+import { ActionButton, Kpi, KpiRow, MeterRow, Panel } from '@/components/common/Panel';
+import { ScreenState } from '@/components/common/ScreenState';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { HeroHeader } from '@/components/graphics/HeroHeader';
+import { formatCompactCurrency } from '@/components/motion/AnimatedNumber';
+import { FadeInView } from '@/components/motion/FadeInView';
+import { PressableScale } from '@/components/motion/PressableScale';
+import { SkeletonCard } from '@/components/motion/Skeleton';
+import { useAppSelector } from '@/hooks/useRedux';
+import { usePdfCompany } from '@/hooks/usePdfCompany';
+import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
+import type { AppStackParamList } from '@/navigation/types';
+import { useTheme, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Theme } from '@/theme/types';
+import type { CustomerInsight, LeadScore, NextBestAction, SalesForecast } from '@/types';
+import { exportPdf, inr, reportHtml } from '@/utils/pdf';
+import { can } from '@/utils/permissions';
 
-import { Card } from '@/components/common/Card';
+type Props = NativeStackScreenProps<AppStackParamList, 'AiCenter'>;
+type Tab = 'deals' | 'leads' | 'customers' | 'forecast';
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-import { colors } from '@/theme/colors';
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-import {
-  typography,
-  spacing,
-  radius,
-} from '@/theme/typography';
-
-import type {
-  LeadScore,
-  SalesForecast,
-  NextBestAction,
-  CustomerInsight,
-} from '@/types';
-
-import { createThemedStyles } from '@/theme/themeStore';
-/* ============================================================
-   TYPES
-============================================================ */
-
-type TrendState = 'UP' | 'DOWN' | 'FLAT';
-
-/* ============================================================
-   HELPERS
-============================================================ */
-
-function normalizeTrend(
-  value: SalesForecast['trendDirection'] | null | undefined,
-): TrendState {
-  const trend = String(value ?? '')
-    .trim()
-    .toUpperCase();
-
-  if (
-    trend === 'UP' ||
-    trend === 'UPWARD' ||
-    trend === 'INCREASING' ||
-    trend === 'GROWING'
-  ) {
-    return 'UP';
-  }
-
-  if (
-    trend === 'DOWN' ||
-    trend === 'DOWNWARD' ||
-    trend === 'DECREASING' ||
-    trend === 'DECLINING'
-  ) {
-    return 'DOWN';
-  }
-
-  return 'FLAT';
+interface Data {
+  briefing: Briefing | null;
+  deals: { deals: DealInsight[]; summary: { open: number; pipeline: number; weighted: number; highRisk: number } } | null;
+  actions: NextBestAction[];
+  leads: LeadScore[] | null;
+  customers: CustomerInsight[] | null;
+  forecast: SalesForecast | null;
 }
 
-function priorityColor(
-  priority: NextBestAction['priority'],
-): string {
-  if (priority === 'high') {
-    return colors.danger;
-  }
+/**
+ * AI Center: transparent, rule-based insights computed from the
+ * company's own data (no external AI service): a daily briefing, deal
+ * win probability with the reasons, lead scores, customers at risk and
+ * a revenue trend. Every role sees its own scope; lead scores, customer
+ * risk and the revenue forecast need report access.
+ */
+export function AiCenterScreen({ navigation }: Props) {
+  const theme = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const role = useAppSelector(state => state.auth.user?.role);
+  const full = can(role, 'reports.view');
+  const company = usePdfCompany();
 
-  if (priority === 'medium') {
-    return colors.warning;
-  }
-
-  return colors.textMuted;
-}
-
-function priorityLabel(
-  priority: NextBestAction['priority'],
-): string {
-  if (priority === 'high') {
-    return 'HIGH';
-  }
-
-  if (priority === 'medium') {
-    return 'MEDIUM';
-  }
-
-  return 'LOW';
-}
-
-function scoreColor(score: number): string {
-  if (score >= 80) {
-    return colors.success;
-  }
-
-  if (score >= 60) {
-    return colors.primary;
-  }
-
-  if (score >= 40) {
-    return colors.warning;
-  }
-
-  return colors.danger;
-}
-
-function formatCurrency(value: number): string {
-  return `₹${value.toLocaleString('en-IN', {
-    maximumFractionDigits: 0,
-  })}`;
-}
-
-/* ============================================================
-   SCREEN
-============================================================ */
-
-export function AiCenterScreen() {
-  const [leadScores, setLeadScores] =
-    useState<LeadScore[]>([]);
-
-  const [forecast, setForecast] =
-    useState<SalesForecast | null>(null);
-
-  const [actions, setActions] =
-    useState<NextBestAction[]>([]);
-
-  const [atRisk, setAtRisk] =
-    useState<CustomerInsight[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-  /* ==========================================================
-     LOAD
-  ========================================================== */
+  const [data, setData] = useState<Data | null>(null);
+  const [tab, setTab] = useState<Tab>('deals');
+  const [open, setOpen] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
-    const [
-      scores,
-      forecastData,
-      nextActions,
-      insights,
-    ] = await Promise.all([
-      getLeadScores(),
-      getSalesForecast(),
-      getNextBestActions(),
-      getCustomerInsights(),
-    ]);
-
-    setLeadScores(scores);
-    setForecast(forecastData);
-    setActions(nextActions);
-    setAtRisk(
-      insights.atRiskCustomers,
-    );
-  }, []);
+    try {
+      const soft = <T,>(p: Promise<T>) => p.catch(() => null);
+      const [briefing, deals, actions, leads, customers, forecast] = await Promise.all([
+        soft(getBriefing()),
+        soft(getDealInsights()),
+        getNextBestActions().catch(() => [] as NextBestAction[]),
+        full ? soft(getLeadScores()) : Promise.resolve(null),
+        full ? soft(getCustomerInsights().then(r => r.atRiskCustomers)) : Promise.resolve(null),
+        full ? soft(getSalesForecast()) : Promise.resolve(null),
+      ]);
+      if (!briefing && !deals) throw new Error('unavailable');
+      setData({ briefing, deals, actions, leads, customers, forecast });
+      setError(null);
+    } catch {
+      setError('Could not load insights.');
+    }
+  }, [full]);
 
   useEffect(() => {
-    let cancelled = false;
+    load();
+  }, [load]);
+  useRefreshOnFocus(load);
 
-    async function initialLoad() {
-      try {
-        const [
-          scores,
-          forecastData,
-          nextActions,
-          insights,
-        ] = await Promise.all([
-          getLeadScores(),
-          getSalesForecast(),
-          getNextBestActions(),
-          getCustomerInsights(),
-        ]);
+  const riskColor = (risk: DealInsight['risk']) => (risk === 'high' ? theme.colors.danger : risk === 'medium' ? theme.colors.warning : theme.colors.success);
+  const toneColor = (tone: string) => (tone === 'good' ? theme.colors.success : tone === 'bad' ? theme.colors.danger : tone === 'warn' ? theme.colors.warning : theme.colors.primary);
 
-        if (cancelled) {
-          return;
-        }
-
-        setLeadScores(scores);
-        setForecast(forecastData);
-        setActions(nextActions);
-        setAtRisk(
-          insights.atRiskCustomers,
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    initialLoad();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  /* ==========================================================
-     REFRESH
-  ========================================================== */
-
-  async function handleRefresh() {
-    setRefreshing(true);
-
+  const exportReport = async () => {
+    if (!data) return;
+    setExporting(true);
     try {
-      await load();
-    } catch (error) {
-      console.error(
-        'AI Center refresh error:',
-        error,
+      await exportPdf(
+        reportHtml({
+          title: 'AI insights report',
+          subtitle: role === 'OWNER' || role === 'ADMIN' ? 'Whole company' : role === 'MANAGER' ? 'Your team' : 'Your own pipeline',
+          company: await company(),
+          kpis: data.deals
+            ? [
+                { label: 'Open deals', value: String(data.deals.summary.open) },
+                { label: 'Pipeline', value: inr(data.deals.summary.pipeline) },
+                { label: 'Realistic forecast', value: inr(data.deals.summary.weighted) },
+                { label: 'High-risk deals', value: String(data.deals.summary.highRisk) },
+              ]
+            : [],
+          sections: [
+            { title: 'Briefing', text: [data.briefing?.headline, ...(data.briefing?.points.map(p => `• ${p.text}`) ?? [])].filter(Boolean).join('  ') },
+            {
+              title: 'Deal win probability',
+              numeric: [3, 4],
+              table: [
+                ['Deal', 'Customer', 'Owner', 'Value', 'Win %', 'Risk', 'Next step'],
+                ...(data.deals?.deals ?? []).map(d => [d.title, d.customer ?? '', d.owner ?? '', inr(d.amount), `${d.probability}%`, d.risk, d.nextStep]),
+              ],
+            },
+            ...(data.leads
+              ? [{ title: 'Lead scores', numeric: [3], table: [['Lead', 'Status', 'Source', 'Score'], ...data.leads.slice(0, 30).map(l => [l.name, l.status, l.source, String(l.score)])] }]
+              : []),
+            ...(data.customers?.length
+              ? [{ title: 'Customers at risk', table: [['Customer', 'Reason'], ...data.customers.map(c => [c.name, c.reason])] }]
+              : []),
+          ],
+        }),
+        'AI-insights.pdf',
       );
+    } catch {
+      Alert.alert('Could not create the PDF', 'Please try again.');
     } finally {
-      setRefreshing(false);
+      setExporting(false);
     }
-  }
+  };
 
-  /* ==========================================================
-     CALCULATED DATA
-  ========================================================== */
-
-  const highPriorityCount = useMemo(
-    () =>
-      actions.filter(
-        action =>
-          action.priority === 'high',
-      ).length,
-    [actions],
+  const header = (
+    <HeroHeader
+      title="AI Center"
+      subtitle="Smart insights from your own data"
+      icon="analytics-outline"
+      onBack={navigation.canGoBack() ? navigation.goBack : undefined}
+      right={
+        <PressableScale onPress={exportReport} accessibilityRole="button" accessibilityLabel="Download insights PDF" style={styles.headerBtn}>
+          <Ionicons name={exporting ? 'hourglass-outline' : 'download-outline'} size={18} color={theme.colors.onPrimary} />
+        </PressableScale>
+      }
+    />
   );
 
-  const averageLeadScore = useMemo(() => {
-    if (leadScores.length === 0) {
-      return 0;
-    }
-
-    const total = leadScores.reduce(
-      (sum, lead) =>
-        sum + lead.score,
-      0,
-    );
-
-    return Math.round(
-      total / leadScores.length,
-    );
-  }, [leadScores]);
-
-  const trend = normalizeTrend(
-    forecast?.trendDirection,
-  );
-
-  /* ==========================================================
-     LOADING
-  ========================================================== */
-
-  if (loading) {
+  if (!data) {
     return (
-      <View style={styles.centered}>
-        <View style={styles.loadingIcon}>
-          <Text
-            style={styles.loadingIconText}
-          >
-            AI
-          </Text>
-        </View>
-
-        <ActivityIndicator
-          size="small"
-          color={colors.primary}
-        />
-
-        <Text style={styles.loadingText}>
-          Analyzing your CRM data...
-        </Text>
+      <View style={styles.screen}>
+        {header}
+        <View style={styles.content}>{error ? <ScreenState kind="error" message={error} onRetry={load} /> : [0, 1, 2].map(i => <SkeletonCard key={i} lines={4} />)}</View>
       </View>
     );
   }
 
-  /* ==========================================================
-     UI
-  ========================================================== */
+  const tabs: { value: Tab; label: string }[] = [
+    { value: 'deals', label: 'Deals' },
+    ...(full ? ([{ value: 'leads', label: 'Leads' }, { value: 'customers', label: 'Customers' }, { value: 'forecast', label: 'Forecast' }] as { value: Tab; label: string }[]) : []),
+  ];
 
   return (
-    <View style={styles.container}>
+    <View style={styles.screen}>
+      {header}
       <ScrollView
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={theme.colors.primary}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await load();
+              setRefreshing(false);
+            }}
           />
         }
-        contentContainerStyle={
-          styles.content
-        }
       >
-        {/* ====================================================
-            HEADER
-        ==================================================== */}
-
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.eyebrow}>
-              INTELLIGENCE
-            </Text>
-
-            <Text style={styles.title}>
-              AI Center
-            </Text>
-
-            <Text style={styles.subtitle}>
-              Smart insights from your CRM
-            </Text>
-          </View>
-
-          <View style={styles.aiIcon}>
-            <Text style={styles.aiIconText}>
-              AI
-            </Text>
-
-            <View
-              style={styles.aiStatusDot}
-            />
-          </View>
-        </View>
-
-        {/* ====================================================
-            SUMMARY
-        ==================================================== */}
-
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <View
-              style={[
-                styles.summaryIcon,
-                {
-                  backgroundColor:
-                    colors.primaryLight,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.summaryIconText,
-                  {
-                    color:
-                      colors.primary,
-                  },
-                ]}
-              >
-                ◎
-              </Text>
+        {/* ---------- briefing ---------- */}
+        {data.briefing ? (
+          <FadeInView index={0}>
+            <View style={[styles.briefing, { backgroundColor: theme.colors.primary }]}>
+              <View style={styles.briefHead}>
+                <Ionicons name="sunny-outline" size={20} color={theme.colors.onPrimary} />
+                <Text style={styles.briefLabel}>Today’s briefing</Text>
+              </View>
+              <Text style={styles.briefHeadline}>{data.briefing.headline}</Text>
             </View>
-
-            <Text
-              style={styles.summaryLabel}
-            >
-              Avg. score
-            </Text>
-
-            <Text
-              style={styles.summaryValue}
-            >
-              {averageLeadScore}
-            </Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <View
-              style={[
-                styles.summaryIcon,
-                {
-                  backgroundColor:
-                    colors.warning + '12',
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.summaryIconText,
-                  {
-                    color:
-                      colors.warning,
-                  },
-                ]}
-              >
-                !
-              </Text>
-            </View>
-
-            <Text
-              style={styles.summaryLabel}
-            >
-              Actions
-            </Text>
-
-            <Text
-              style={styles.summaryValue}
-            >
-              {actions.length}
-            </Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <View
-              style={[
-                styles.summaryIcon,
-                {
-                  backgroundColor:
-                    colors.danger + '10',
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.summaryIconText,
-                  {
-                    color:
-                      colors.danger,
-                  },
-                ]}
-              >
-                !
-              </Text>
-            </View>
-
-            <Text
-              style={styles.summaryLabel}
-            >
-              At risk
-            </Text>
-
-            <Text
-              style={[
-                styles.summaryValue,
-                atRisk.length > 0 && {
-                  color:
-                    colors.danger,
-                },
-              ]}
-            >
-              {atRisk.length}
-            </Text>
-          </View>
-        </View>
-
-        {/* ====================================================
-            DATA NOTICE
-        ==================================================== */}
-
-        <View style={styles.dataNotice}>
-          <View style={styles.noticeIcon}>
-            <Text
-              style={styles.noticeIconText}
-            >
-              ✓
-            </Text>
-          </View>
-
-          <View
-            style={styles.noticeContent}
-          >
-            <Text
-              style={styles.noticeTitle}
-            >
-              Based on your CRM data
-            </Text>
-
-            <Text
-              style={styles.noticeText}
-            >
-              Insights are calculated from
-              your actual leads, revenue,
-              customers and activities.
-            </Text>
-          </View>
-        </View>
-
-        {/* ====================================================
-            SALES FORECAST
-        ==================================================== */}
-
-        <Card style={styles.section}>
-          <View
-            style={styles.sectionHeader}
-          >
-            <View>
-              <Text
-                style={
-                  styles.sectionEyebrow
-                }
-              >
-                FORECAST
-              </Text>
-
-              <Text
-                style={styles.cardTitle}
-              >
-                Sales forecast
-              </Text>
-            </View>
-
-            <View
-              style={styles.forecastBadge}
-            >
-              <Text
-                style={
-                  styles.forecastBadgeText
-                }
-              >
-                NEXT MONTH
-              </Text>
-            </View>
-          </View>
-
-          {forecast?.forecastedRevenue ===
-          null ? (
-            <View
-              style={styles.emptyBlock}
-            >
-              <Text
-                style={styles.emptyTitle}
-              >
-                Not enough data
-              </Text>
-
-              <Text
-                style={styles.emptyText}
-              >
-                {forecast?.monthsOfHistory ??
-                  0}{' '}
-                month
-                {(forecast?.monthsOfHistory ??
-                  0) === 1
-                  ? ''
-                  : 's'}{' '}
-                of paid invoice history
-                is available. More data is
-                needed to project a trend.
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text
-                style={styles.forecastValue}
-              >
-                {formatCurrency(
-                  forecast?.forecastedRevenue ??
-                    0,
-                )}
-              </Text>
-
-              {/* FIXED TREND SECTION */}
-
-              <View
-                style={
-                  styles.forecastMetaRow
-                }
-              >
-                <View
-                  style={[
-                    styles.trendBadge,
-                    trend === 'UP' && {
-                      backgroundColor:
-                        colors.success +
-                        '12',
-                    },
-                    trend === 'DOWN' && {
-                      backgroundColor:
-                        colors.danger +
-                        '10',
-                    },
-                    trend === 'FLAT' && {
-                      backgroundColor:
-                        colors.background,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.trendText,
-                      trend === 'UP' && {
-                        color:
-                          colors.success,
-                      },
-                      trend === 'DOWN' && {
-                        color:
-                          colors.danger,
-                      },
-                      trend === 'FLAT' && {
-                        color:
-                          colors.textMuted,
-                      },
-                    ]}
-                  >
-                    {trend === 'UP'
-                      ? '↑ UP'
-                      : trend === 'DOWN'
-                        ? '↓ DOWN'
-                        : '→ STABLE'}
-                  </Text>
+            <View style={styles.points}>
+              {data.briefing.points.map((p, i) => (
+                <View key={i} style={styles.point}>
+                  <View style={[styles.pointIcon, { backgroundColor: `${toneColor(p.tone)}1F` }]}>
+                    <Ionicons name={p.icon as IconName} size={15} color={toneColor(p.tone)} />
+                  </View>
+                  <Text style={styles.pointText}>{p.text}</Text>
                 </View>
-
-                <Text
-                  style={
-                    styles.forecastMeta
-                  }
-                >
-                  Based on{' '}
-                  {
-                    forecast?.monthsOfHistory
-                  }{' '}
-                  months of revenue
-                </Text>
-              </View>
-            </>
-          )}
-        </Card>
-
-        {/* ====================================================
-            NEXT BEST ACTIONS
-        ==================================================== */}
-
-        <Card style={styles.section}>
-          <View
-            style={styles.sectionHeader}
-          >
-            <View>
-              <Text
-                style={
-                  styles.sectionEyebrow
-                }
-              >
-                RECOMMENDATIONS
-              </Text>
-
-              <Text
-                style={styles.cardTitle}
-              >
-                Next best actions
-              </Text>
+              ))}
             </View>
+          </FadeInView>
+        ) : null}
 
-            {highPriorityCount > 0 && (
-              <View
-                style={
-                  styles.highPriorityBadge
-                }
-              >
-                <Text
-                  style={
-                    styles.highPriorityText
-                  }
-                >
-                  {highPriorityCount}{' '}
-                  urgent
-                </Text>
-              </View>
-            )}
-          </View>
+        {data.deals ? (
+          <KpiRow>
+            <Kpi label="Open pipeline" value={data.deals.summary.pipeline} money icon="git-branch-outline" color={theme.colors.primary} />
+            <Kpi label="Realistic forecast" value={data.deals.summary.weighted} money icon="analytics-outline" color={theme.colors.accent} hint="probability-weighted" />
+            <Kpi label="Open deals" value={data.deals.summary.open} icon="briefcase-outline" color={theme.colors.info} />
+            <Kpi label="High risk" value={data.deals.summary.highRisk} icon="warning-outline" color={theme.colors.danger} />
+          </KpiRow>
+        ) : null}
 
-          {actions.length === 0 ? (
-            <View
-              style={styles.emptyBlock}
-            >
-              <Text
-                style={styles.emptyTitle}
-              >
-                Everything looks good
-              </Text>
+        {tabs.length > 1 ? <SegmentedControl<Tab> accessibilityLabel="Insight type" value={tab} onChange={setTab} options={tabs} /> : null}
+        <View style={{ height: 14 }} />
 
-              <Text
-                style={styles.emptyText}
-              >
-                No urgent recommendations
-                right now.
-              </Text>
-            </View>
-          ) : (
-            actions
-              .slice(0, 6)
-              .map((action, index) => {
-                const color =
-                  priorityColor(
-                    action.priority,
-                  );
-
-                return (
-                  <View
-                    key={`${action.message}-${index}`}
-                    style={[
-                      styles.actionRow,
-                      index > 0 &&
-                        styles.rowBorder,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.actionIcon,
-                        {
-                          backgroundColor:
-                            color +
-                            '10',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.actionIconText,
-                          {
-                            color,
-                          },
-                        ]}
-                      >
-                        !
-                      </Text>
-                    </View>
-
-                    <View
-                      style={
-                        styles.actionContent
-                      }
-                    >
-                      <View
-                        style={
-                          styles.actionTopRow
-                        }
-                      >
-                        <View
-                          style={[
-                            styles.priorityBadge,
-                            {
-                              backgroundColor:
-                                color +
-                                '10',
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.priorityText,
-                              {
-                                color,
-                              },
-                            ]}
-                          >
-                            {priorityLabel(
-                              action.priority,
-                            )}
-                          </Text>
-                        </View>
+        {/* ---------- deals ---------- */}
+        {tab === 'deals' ? (
+          <>
+            {(data.deals?.deals ?? []).length === 0 ? (
+              <ScreenState kind="empty" title="No open deals" message="Win probability appears here for every open deal." />
+            ) : (
+              data.deals!.deals.map((d, i) => (
+                <FadeInView key={d.id} index={i}>
+                  <PressableScale onPress={() => setOpen(open === d.id ? null : d.id)} accessibilityRole="button" accessibilityLabel={`${d.title}, ${d.probability} percent likely`} style={styles.deal}>
+                    <View style={styles.dealTop}>
+                      <View style={[styles.ring, { borderColor: riskColor(d.risk) }]}>
+                        <Text style={[styles.ringText, { color: riskColor(d.risk) }]}>{d.probability}%</Text>
                       </View>
-
-                      <Text
-                        style={
-                          styles.actionText
-                        }
-                      >
-                        {action.message}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.dealTitle} numberOfLines={1}>
+                          {d.title}
+                        </Text>
+                        <Text style={styles.dealMeta} numberOfLines={1}>
+                          {formatCompactCurrency(d.amount)} · {d.stage.charAt(0) + d.stage.slice(1).toLowerCase()}
+                          {d.customer ? ` · ${d.customer}` : ''}
+                          {d.owner ? ` · ${d.owner}` : ''}
+                        </Text>
+                      </View>
+                      <StatusBadge label={`${d.risk} risk`} tone={d.risk === 'high' ? 'danger' : d.risk === 'medium' ? 'warning' : 'success'} />
                     </View>
-                  </View>
-                );
-              })
-          )}
-        </Card>
-
-        {/* ====================================================
-            LEAD SCORES
-        ==================================================== */}
-
-        <Card style={styles.section}>
-          <View
-            style={styles.sectionHeader}
-          >
-            <View>
-              <Text
-                style={
-                  styles.sectionEyebrow
-                }
-              >
-                LEAD INTELLIGENCE
-              </Text>
-
-              <Text
-                style={styles.cardTitle}
-              >
-                Top scored leads
-              </Text>
-            </View>
-
-            <Text
-              style={styles.countText}
-            >
-              {leadScores.length}
-            </Text>
-          </View>
-
-          {leadScores.length === 0 ? (
-            <View
-              style={styles.emptyBlock}
-            >
-              <Text
-                style={styles.emptyTitle}
-              >
-                No open leads
-              </Text>
-
-              <Text
-                style={styles.emptyText}
-              >
-                There are no open leads
-                available for scoring.
-              </Text>
-            </View>
-          ) : (
-            leadScores
-              .slice(0, 5)
-              .map((lead, index) => {
-                const color =
-                  scoreColor(
-                    lead.score,
-                  );
-
-                return (
-                  <View
-                    key={lead.leadId}
-                    style={[
-                      styles.leadRow,
-                      index > 0 &&
-                        styles.rowBorder,
-                    ]}
-                  >
-                    <View
-                      style={
-                        styles.rankCircle
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.rankText
-                        }
-                      >
-                        {index + 1}
-                      </Text>
+                    <View style={[styles.nextStep, { backgroundColor: theme.colors.surfaceAlt }]}>
+                      <Ionicons name="arrow-forward-circle-outline" size={16} color={theme.colors.primary} />
+                      <Text style={styles.nextText}>{d.nextStep}</Text>
                     </View>
-
-                    <View
-                      style={
-                        styles.leadInfo
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.leadName
-                        }
-                        numberOfLines={1}
-                      >
-                        {lead.name}
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.leadMeta
-                        }
-                      >
-                        {lead.status} ·{' '}
-                        {lead.source
-                          .replace(
-                            '_',
-                            ' ',
-                          )
-                          .toLowerCase()}
-                      </Text>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.scoreCircle,
-                        {
-                          backgroundColor:
-                            color +
-                            '10',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.scoreText,
-                          {
-                            color,
-                          },
-                        ]}
-                      >
-                        {lead.score}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })
-          )}
-        </Card>
-
-        {/* ====================================================
-            AT RISK CUSTOMERS
-        ==================================================== */}
-
-        <Card style={styles.section}>
-          <View
-            style={styles.sectionHeader}
-          >
-            <View>
-              <Text
-                style={
-                  styles.sectionEyebrow
-                }
-              >
-                CUSTOMER INTELLIGENCE
-              </Text>
-
-              <Text
-                style={styles.cardTitle}
-              >
-                Customers at risk
-              </Text>
-            </View>
-
-            {atRisk.length > 0 && (
-              <View
-                style={
-                  styles.riskCountBadge
-                }
-              >
-                <Text
-                  style={
-                    styles.riskCountText
-                  }
-                >
-                  {atRisk.length}
-                </Text>
-              </View>
+                    {open === d.id ? (
+                      <View style={styles.signals}>
+                        <Text style={styles.signalHead}>Why {d.probability}%?</Text>
+                        {d.signals.map(s => (
+                          <View key={s.label} style={styles.signal}>
+                            <Text style={[styles.signalImpact, { color: s.impact >= 0 ? theme.colors.success : theme.colors.danger }]}>
+                              {s.impact >= 0 ? '+' : ''}
+                              {s.impact}
+                            </Text>
+                            <Text style={styles.signalLabel}>{s.label}</Text>
+                          </View>
+                        ))}
+                        <PressableScale onPress={() => navigation.navigate('TeamActivity', { targetType: 'Opportunity', targetId: d.id, title: d.title })} style={styles.linkBtn}>
+                          <Text style={styles.link}>View deal history →</Text>
+                        </PressableScale>
+                      </View>
+                    ) : (
+                      <Text style={styles.tapHint}>Tap to see why</Text>
+                    )}
+                  </PressableScale>
+                </FadeInView>
+              ))
             )}
-          </View>
+            {data.actions.length > 0 ? (
+              <Panel title="Next best actions" icon="flash-outline">
+                {data.actions.slice(0, 8).map((a, i) => (
+                  <View key={i} style={styles.point}>
+                    <View style={[styles.pointIcon, { backgroundColor: `${a.priority === 'high' ? theme.colors.danger : a.priority === 'medium' ? theme.colors.warning : theme.colors.info}1F` }]}>
+                      <Ionicons name="flash" size={14} color={a.priority === 'high' ? theme.colors.danger : a.priority === 'medium' ? theme.colors.warning : theme.colors.info} />
+                    </View>
+                    <Text style={styles.pointText}>{a.message}</Text>
+                  </View>
+                ))}
+              </Panel>
+            ) : null}
+          </>
+        ) : null}
 
-          {atRisk.length === 0 ? (
-            <View
-              style={styles.emptyBlock}
-            >
-              <View
-                style={styles.successIcon}
-              >
-                <Text
-                  style={
-                    styles.successIconText
-                  }
-                >
-                  ✓
+        {/* ---------- leads ---------- */}
+        {tab === 'leads' ? (
+          (data.leads ?? []).length === 0 ? (
+            <ScreenState kind="empty" title="No open leads to score" message="Scores use contact completeness, source history, freshness and engagement." />
+          ) : (
+            data.leads!.slice(0, 25).map((l, i) => (
+              <FadeInView key={l.leadId} index={i}>
+                <PressableScale onPress={() => navigation.navigate('LeadDetail', { leadId: l.leadId, leadName: l.name })} accessibilityRole="button" style={styles.deal}>
+                  <View style={styles.dealTop}>
+                    <View style={[styles.ring, { borderColor: l.score >= 60 ? theme.colors.success : l.score >= 35 ? theme.colors.warning : theme.colors.danger }]}>
+                      <Text style={[styles.ringText, { color: theme.colors.text }]}>{l.score}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dealTitle}>{l.name}</Text>
+                      <Text style={styles.dealMeta}>
+                        {l.status} · {l.source.replace('_', ' ')}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ marginTop: 10 }}>
+                    <MeterRow label="Contact details" value={l.factors.contactCompleteness} max={25} color={theme.colors.primary} display={`${l.factors.contactCompleteness}/25`} />
+                    <MeterRow label="Source quality" value={l.factors.sourceQuality} max={35} color={theme.colors.accent} display={`${l.factors.sourceQuality}/35`} />
+                    <MeterRow label="Freshness" value={l.factors.freshness} max={20} color={theme.colors.info} display={`${l.factors.freshness}/20`} />
+                    <MeterRow label="Engagement" value={l.factors.engagement} max={20} color={theme.colors.success} display={`${l.factors.engagement}/20`} />
+                  </View>
+                </PressableScale>
+              </FadeInView>
+            ))
+          )
+        ) : null}
+
+        {/* ---------- customers ---------- */}
+        {tab === 'customers' ? (
+          (data.customers ?? []).length === 0 ? (
+            <ScreenState kind="empty" title="No customers at risk" message="Paying customers with no logged activity in 30 days show up here." />
+          ) : (
+            data.customers!.map((c, i) => (
+              <FadeInView key={c.customerId} index={i}>
+                <PressableScale onPress={() => navigation.navigate('CustomerDetail', { customerId: c.customerId, customerName: c.name })} accessibilityRole="button" style={styles.deal}>
+                  <View style={styles.dealTop}>
+                    <View style={[styles.pointIcon, { backgroundColor: theme.colors.warningSoft, width: 38, height: 38 }]}>
+                      <Ionicons name="alert-outline" size={18} color={theme.colors.warning} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dealTitle}>{c.name}</Text>
+                      <Text style={styles.dealMeta}>{c.reason}</Text>
+                    </View>
+                  </View>
+                </PressableScale>
+              </FadeInView>
+            ))
+          )
+        ) : null}
+
+        {/* ---------- forecast ---------- */}
+        {tab === 'forecast' ? (
+          <Panel title="Revenue trend" icon="trending-up-outline" subtitle="Paid invoices per month, straight-line trend">
+            {data.forecast?.history?.length ? (
+              <BarChart data={data.forecast.history.map(h => ({ label: MONTHS[h.month - 1], value: h.revenue }))} format={formatCompactCurrency} highlightLast />
+            ) : (
+              <Text style={styles.empty}>No paid invoices yet.</Text>
+            )}
+            {data.forecast?.forecastedRevenue != null ? (
+              <View style={[styles.nextStep, { backgroundColor: theme.colors.primaryLight, marginTop: 14 }]}>
+                <Ionicons name={data.forecast.trendDirection === 'down' ? 'trending-down' : 'trending-up'} size={18} color={data.forecast.trendDirection === 'down' ? theme.colors.danger : theme.colors.success} />
+                <Text style={styles.nextText}>
+                  Next month if the trend holds: <Text style={{ fontWeight: '800' }}>{inr(data.forecast.forecastedRevenue)}</Text> (based on {data.forecast.monthsOfHistory} months)
                 </Text>
               </View>
+            ) : (
+              <Text style={styles.empty}>A forecast needs at least two months of paid invoices.</Text>
+            )}
+          </Panel>
+        ) : null}
 
-              <Text
-                style={styles.emptyTitle}
-              >
-                Customers look healthy
-              </Text>
-
-              <Text
-                style={styles.emptyText}
-              >
-                No paying customers currently
-                appear inactive.
-              </Text>
-            </View>
-          ) : (
-            atRisk.map(
-              (customer, index) => (
-                <View
-                  key={
-                    customer.customerId
-                  }
-                  style={[
-                    styles.riskRow,
-                    index > 0 &&
-                      styles.rowBorder,
-                  ]}
-                >
-                  <View
-                    style={
-                      styles.riskIcon
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.riskIconText
-                      }
-                    >
-                      !
-                    </Text>
-                  </View>
-
-                  <View
-                    style={
-                      styles.riskContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.riskName
-                      }
-                      numberOfLines={1}
-                    >
-                      {customer.name}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.riskReason
-                      }
-                      numberOfLines={2}
-                    >
-                      {customer.reason}
-                    </Text>
-                  </View>
-                </View>
-              ),
-            )
-          )}
-        </Card>
-
-        {/* ====================================================
-            FOOTER
-        ==================================================== */}
-
-        <View style={styles.footer}>
-          <View
-            style={styles.footerIcon}
-          >
-            <Text
-              style={
-                styles.footerIconText
-              }
-            >
-              AI
-            </Text>
-          </View>
-
-          <Text
-            style={styles.footerText}
-          >
-            CRM intelligence updates from
-            your latest business data
+        <Panel title="How these insights work" icon="information-circle-outline">
+          <Text style={styles.explain}>
+            Everything here is calculated from your CRM data with clear rules — deal stage, recent activity, close dates, the customer’s payment history, lead source results — so every number can be explained. Nothing is sent to an outside AI service. You only see records your role allows.
           </Text>
-        </View>
+        </Panel>
+        <ActionButton label="Download insights (PDF)" icon="download-outline" onPress={exportReport} busy={exporting} />
       </ScrollView>
     </View>
   );
 }
 
-/* ============================================================
-   STYLES
-============================================================ */
-
-const styles = createThemedStyles(() => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor:
-      colors.background,
-  },
-
-  content: {
-    paddingHorizontal:
-      spacing.md,
-    paddingTop:
-      spacing.sm,
-    paddingBottom:
-      spacing.xl,
-  },
-
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor:
-      colors.background,
-  },
-
-  loadingIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor:
-      colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom:
-      spacing.md,
-  },
-
-  loadingIconText: {
-    color: colors.primary,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
-  loadingText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-  },
-
-  /* ==========================================================
-     HEADER
-  ========================================================== */
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-  },
-
-  headerContent: {
-    flex: 1,
-  },
-
-  eyebrow: {
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: colors.primary,
-    marginBottom: 2,
-  },
-
-  title: {
-    ...typography.h1,
-    color: colors.text,
-    fontWeight: '700',
-  },
-
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  aiIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor:
-      colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.sm,
-    position: 'relative',
-  },
-
-  aiIconText: {
-    color: colors.textInverse,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-
-  aiStatusDot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    right: 4,
-    top: 4,
-    backgroundColor:
-      colors.success,
-    borderWidth: 2,
-    borderColor:
-      colors.primary,
-  },
-
-  /* ==========================================================
-     SUMMARY
-  ========================================================== */
-
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 7,
-    marginBottom: spacing.sm,
-  },
-
-  summaryCard: {
-    flex: 1,
-    minHeight: 72,
-    backgroundColor:
-      colors.surface,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 9,
-    justifyContent: 'center',
-  },
-
-  summaryIcon: {
-    width: 27,
-    height: 27,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 5,
-  },
-
-  summaryIconText: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-
-  summaryLabel: {
-    fontSize: 9,
-    lineHeight: 12,
-    color: colors.textMuted,
-  },
-
-  summaryValue: {
-    fontSize: 17,
-    lineHeight: 20,
-    color: colors.text,
-    fontWeight: '800',
-    marginTop: 1,
-  },
-
-  /* ==========================================================
-     NOTICE
-  ========================================================== */
-
-  dataNotice: {
-    flexDirection: 'row',
-    backgroundColor:
-      colors.primaryLight,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: spacing.sm,
-  },
-
-  noticeIcon: {
-    width: 27,
-    height: 27,
-    borderRadius: 9,
-    backgroundColor:
-      colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-
-  noticeIconText: {
-    color: colors.textInverse,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  noticeContent: {
-    flex: 1,
-  },
-
-  noticeTitle: {
-    fontSize: 10,
-    lineHeight: 13,
-    color: colors.primary,
-    fontWeight: '800',
-  },
-
-  noticeText: {
-    fontSize: 9,
-    lineHeight: 13,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-
-  /* ==========================================================
-     SECTIONS
-  ========================================================== */
-
-  section: {
-    marginTop: spacing.sm,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-
-  sectionEyebrow: {
-    fontSize: 8,
-    lineHeight: 11,
-    letterSpacing: 0.9,
-    color: colors.primary,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-
-  cardTitle: {
-    ...typography.h3,
-    color: colors.text,
-    fontWeight: '700',
-  },
-
-  countText: {
-    fontSize: 10,
-    color: colors.textMuted,
-    backgroundColor:
-      colors.background,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-
-  /* ==========================================================
-     FORECAST
-  ========================================================== */
-
-  forecastBadge: {
-    backgroundColor:
-      colors.primaryLight,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 7,
-  },
-
-  forecastBadgeText: {
-    fontSize: 7,
-    color: colors.primary,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-
-  forecastValue: {
-    fontSize: 27,
-    lineHeight: 32,
-    color: colors.primary,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-
-  forecastMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-
-  trendBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginRight: 7,
-  },
-
-  trendText: {
-    fontSize: 8,
-    fontWeight: '800',
-  },
-
-  forecastMeta: {
-    ...typography.small,
-    color: colors.textMuted,
-    flex: 1,
-  },
-
-  /* ==========================================================
-     EMPTY
-  ========================================================== */
-
-  emptyBlock: {
-    paddingVertical: spacing.sm,
-  },
-
-  emptyTitle: {
-    ...typography.bodyBold,
-    color: colors.text,
-  },
-
-  emptyText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  /* ==========================================================
-     ACTIONS
-  ========================================================== */
-
-  highPriorityBadge: {
-    backgroundColor:
-      colors.danger + '10',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 7,
-  },
-
-  highPriorityText: {
-    fontSize: 8,
-    color: colors.danger,
-    fontWeight: '800',
-  },
-
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: spacing.sm,
-  },
-
-  rowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-
-  actionIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-
-  actionIconText: {
-    fontSize: 13,
-    fontWeight: '900',
-  },
-
-  actionContent: {
-    flex: 1,
-  },
-
-  actionTopRow: {
-    flexDirection: 'row',
-    marginBottom: 3,
-  },
-
-  priorityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-
-  priorityText: {
-    fontSize: 7,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-
-  actionText: {
-    ...typography.caption,
-    color: colors.text,
-    lineHeight: 17,
-  },
-
-  /* ==========================================================
-     LEADS
-  ========================================================== */
-
-  leadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-
-  rankCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor:
-      colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-
-  rankText: {
-    fontSize: 9,
-    color: colors.textMuted,
-    fontWeight: '800',
-  },
-
-  leadInfo: {
-    flex: 1,
-    marginRight: 8,
-  },
-
-  leadName: {
-    ...typography.bodyBold,
-    color: colors.text,
-  },
-
-  leadMeta: {
-    fontSize: 9,
-    lineHeight: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-    textTransform: 'capitalize',
-  },
-
-  scoreCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  scoreText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  /* ==========================================================
-     CUSTOMER RISK
-  ========================================================== */
-
-  riskCountBadge: {
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor:
-      colors.danger + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  riskCountText: {
-    fontSize: 9,
-    color: colors.danger,
-    fontWeight: '800',
-  },
-
-  riskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-
-  riskIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor:
-      colors.danger + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-
-  riskIconText: {
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-
-  riskContent: {
-    flex: 1,
-  },
-
-  riskName: {
-    ...typography.bodyBold,
-    color: colors.text,
-  },
-
-  riskReason: {
-    fontSize: 9,
-    lineHeight: 14,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  successIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor:
-      colors.success + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 7,
-  },
-
-  successIconText: {
-    color: colors.success,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-
-  /* ==========================================================
-     FOOTER
-  ========================================================== */
-
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-  },
-
-  footerIcon: {
-    width: 25,
-    height: 25,
-    borderRadius: 8,
-    backgroundColor:
-      colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 7,
-  },
-
-  footerIconText: {
-    fontSize: 8,
-    color: colors.primary,
-    fontWeight: '900',
-  },
-
-  footerText: {
-    fontSize: 8,
-    lineHeight: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-}));
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.colors.background },
+    content: { padding: 16, paddingBottom: 60, width: '100%', maxWidth: 900, alignSelf: 'center' },
+    headerBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+    briefing: { borderRadius: theme.radius.lg, padding: 16, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+    briefHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    briefLabel: { color: theme.colors.onPrimary, fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, opacity: 0.9 },
+    briefHeadline: { color: theme.colors.onPrimary, fontSize: 18, fontWeight: '800', marginTop: 8 },
+    points: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderTopWidth: 0, borderBottomLeftRadius: theme.radius.lg, borderBottomRightRadius: theme.radius.lg, padding: 14, marginBottom: 14 },
+    point: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 6 },
+    pointIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+    pointText: { flex: 1, color: theme.colors.textSecondary, fontSize: 13, lineHeight: 19 },
+    deal: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, padding: 14, marginBottom: 10 },
+    dealTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    ring: { width: 50, height: 50, borderRadius: 25, borderWidth: 4, alignItems: 'center', justifyContent: 'center' },
+    ringText: { fontWeight: '800', fontSize: 13 },
+    dealTitle: { color: theme.colors.text, fontWeight: '800', fontSize: 15 },
+    dealMeta: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
+    nextStep: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', borderRadius: 10, padding: 10, marginTop: 10 },
+    nextText: { flex: 1, color: theme.colors.text, fontSize: 13, lineHeight: 18 },
+    signals: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border, paddingTop: 10 },
+    signalHead: { color: theme.colors.text, fontWeight: '800', fontSize: 13, marginBottom: 6 },
+    signal: { flexDirection: 'row', gap: 10, paddingVertical: 3 },
+    signalImpact: { width: 34, fontWeight: '800', fontSize: 13, textAlign: 'right' },
+    signalLabel: { flex: 1, color: theme.colors.textSecondary, fontSize: 13 },
+    tapHint: { color: theme.colors.textFaint, fontSize: 11, marginTop: 8, textAlign: 'right' },
+    linkBtn: { marginTop: 8, alignSelf: 'flex-start' },
+    link: { color: theme.colors.primary, fontWeight: '800', fontSize: 13 },
+    empty: { color: theme.colors.textFaint, textAlign: 'center', paddingVertical: 12 },
+    explain: { color: theme.colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  });
+}

@@ -20,3 +20,35 @@ export async function getCustomerInsights(): Promise<{ atRiskCustomers: Customer
   const { data } = await apiClient.get('/ai/customer-insights');
   return data;
 }
+
+/* v1.4 — every role; the server limits results to the user's scope. */
+
+export interface DealInsight {
+  id: string;
+  title: string;
+  stage: string;
+  amount: number;
+  owner: string | null;
+  customer: string | null;
+  closeDate: string | null;
+  probability: number;
+  risk: 'low' | 'medium' | 'high';
+  weighted: number;
+  signals: { label: string; impact: number }[];
+  nextStep: string;
+}
+
+export interface Briefing {
+  headline: string;
+  points: { icon: string; text: string; tone: 'good' | 'warn' | 'bad' | 'info' }[];
+}
+
+export async function getDealInsights(): Promise<{ deals: DealInsight[]; summary: { open: number; pipeline: number; weighted: number; highRisk: number } }> {
+  const { data } = await apiClient.get('/ai/deal-insights');
+  return data;
+}
+
+export async function getBriefing(): Promise<Briefing> {
+  const { data } = await apiClient.get<Briefing>('/ai/briefing');
+  return data;
+}

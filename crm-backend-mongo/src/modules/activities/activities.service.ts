@@ -90,8 +90,10 @@ export async function listActivities(
     leadId?: string;
     opportunityId?: string;
   },
+  scope: Record<string, unknown> = {},
 ) {
   const filter: Record<string, unknown> = {
+    ...scope,
     companyId,
   };
 
@@ -206,6 +208,7 @@ export async function completeActivity(
   companyId: string,
   id: string,
   completedById: string,
+  scope: Record<string, unknown> = {},
 ) {
   /* ----------------------------------------------------------
      FIND ACTIVITY
@@ -213,6 +216,7 @@ export async function completeActivity(
 
   const activity =
     await Activity.findOne({
+      ...scope,
       _id: id,
       companyId,
     });

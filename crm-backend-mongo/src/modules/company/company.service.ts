@@ -169,6 +169,14 @@ export async function getBrandingForUser(user: AuthUser) {
       timezone: company.timezone,
       locale: company.locale,
       currency: company.currency,
+      billing: {
+        legalName: company.billing?.legalName ?? null,
+        address: company.billing?.address ?? null,
+        gstin: company.billing?.gstin ?? null,
+        phone: company.billing?.phone ?? null,
+        email: company.billing?.email ?? null,
+        bankDetails: company.billing?.bankDetails ?? null,
+      },
     },
     settings: branding,
     preferences,
@@ -262,6 +270,7 @@ export async function updateProfile(
     timezone?: string;
     locale?: string;
     currency?: string;
+    billing?: Record<string, string | null | undefined>;
   },
 ) {
   const company = await loadCompany(actor.companyId);
@@ -279,6 +288,12 @@ export async function updateProfile(
   for (const key of ['name', 'slug', 'timezone', 'locale', 'currency'] as const) {
     if (input[key] !== undefined) {
       company.set(key, input[key]);
+    }
+  }
+
+  if (input.billing) {
+    for (const [key, value] of Object.entries(input.billing)) {
+      if (value !== undefined) company.set(`billing.${key}`, value === '' ? null : value);
     }
   }
 

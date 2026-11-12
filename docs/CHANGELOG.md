@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.4.0 — 2026-11-12 — Hierarchy everywhere, PDF bills, advanced reports & AI Center
+
+### Added
+- **Invoice page** with paid/balance progress, bill preview, payments and history, and **Download bill (PDF)** — a GST tax invoice with both parties' details and GSTINs, line items, GST, total, amount in words (Indian numbering), payments, balance and bank details. **Payment receipt (PDF)** from the invoice page and from every payment in the Payments list. On a phone the share sheet saves or sends the PDF; on web the print dialog offers "Save as PDF".
+- **Company billing details** (Owner → Profile → Billing details): legal name, address, GSTIN (validated), phone, e-mail, bank details — printed on every bill and receipt. `PATCH /company/profile { billing }`, returned with branding, never in the public lookup.
+- **Customer page** rebuilt: account health, call / WhatsApp / e-mail, quick invoice / deal / task, billed-paid-outstanding KPIs, tabs for deals, billing (invoices + payments), activity (tasks, meetings, history) and **statement PDF**.
+- **Calendar** rebuilt: month / week / agenda views, type filters, "mine only", today/week/upcoming/deadline KPIs, event detail sheet (linked customer, lead, deal, attendees, delete when allowed), long-press a date to add, **agenda PDF**.
+- **Team activity — who did what**: per-person performance (leads, deals, tasks done/late, invoiced, collected, last active) with red flags for what was not done; day-by-day activity feed with filters; the full history of any deal, lead, customer or invoice. Business actions are now recorded (`work.*` entries): lead created / status / assignment, deal created / stage moves, customer created, invoice created / status, payment recorded, task created / completed, event created. `npm run backfill:worklog` builds history for older records (additive).
+- **Reports & Analysis** rebuilt with Overview, Sales, **Money** (billed, collected, outstanding, overdue, ageing buckets, who pays and who owes, payment methods, who collected) and Team tabs; every tab downloads as a PDF. Open to every role, scoped to the user.
+- **AI Center** rebuilt: daily briefing, deal win probability with the reasons (+/− signals) and a next step, lead scores with factor bars, customers at risk, revenue trend, next best actions, **insights PDF**. New endpoints `/ai/deal-insights`, `/ai/briefing` (rule-based, scoped).
+- **Alerts → Needs attention**: overdue tasks and invoices, deals past their close date, leads untouched for a week and meetings in the next 48 hours, grouped by urgency, each with *why it matters*, opening the record on tap (`GET /notifications/attention`).
+- New endpoints: `/reports/team-performance`, `/reports/work-log`, `/reports/receivables`.
+- Registration redesigned: labelled steps, company-code preview, "what's included", security note.
+
+### Changed — hierarchy
+- **Tasks** follow the hierarchy: Owner/Admin all, team manager their team (assigned to or created by members), Sales/Employee their own; completing a task outside your scope → 404.
+- **Calendar**: company events (created by Owner/Admin) are visible to everyone; other events to their creator's hierarchy and to invited attendees.
+- Reports, receivables, team activity, alerts and AI insights are available to every role and always limited to that role's scope.
+- Invoice list: tapping opens the invoice; "Mark Paid" replaced by **Record payment** (a real payment, so bills, receipts and reports agree). An invoice with status PAID counts as fully paid everywhere.
+
+### Fixed
+- **Login brand showed only "E" on phones** (company name drawn in the theme's text colour on an always-light pill — invisible in dark mode). The sign-in/sign-up brand now uses fixed readable colours and never shrinks.
+- Registration showed an AI-style ✨ icon; replaced with plain business icons (also on "New" lead status).
+- **Every invoice showed "Unknown customer"**: the API returned the customer under `customerId`; it now returns `customer` (with address and GSTIN) and `customerId` as the id.
+- Month calendar wrapped after six days on phones.
+
+### Tests
+- Backend 102 → **117** (`tests/insights.test.ts`: task and calendar hierarchy, work log incl. cross-company, team performance scoping and flags, receivables maths, needs-attention scoping, billing validation and privacy, deal insights and briefing).
+- App 62 → **75** (`upgrade.test.tsx`: amount in words, bill/receipt/report HTML incl. escaping, paid-amount rule, customer statement maths, calendar grid, work-log wording, company-code preview, Reports scoping per role, Alerts grouping and "why it matters").
+- Expo SDK 58 patch updates; Expo Doctor 20/20.
+
 ## 1.3.1 — 2026-11-12 — Two-company end-to-end test
 
 Found by seeding two realistic companies and testing every role against them (see `docs/DEMO_DATA.md`).

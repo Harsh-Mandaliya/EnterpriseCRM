@@ -79,7 +79,7 @@ const FILTERS: {
   {
     label: 'New',
     value: 'NEW',
-    icon: 'sparkles-outline',
+    icon: 'add-circle-outline',
   },
   {
     label: 'Contacted',

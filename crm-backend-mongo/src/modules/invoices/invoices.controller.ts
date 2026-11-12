@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import { track } from '@/utils/track';
 import { AuthedRequest } from '@/middlewares/auth.middleware';
 import * as invoicesService from '@/modules/invoices/invoices.service';
 import { invoiceScope } from '@/utils/scope';
@@ -26,6 +27,7 @@ export async function getOne(req: AuthedRequest, res: Response, next: NextFuncti
 export async function create(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
     const invoice = await invoicesService.createInvoice(req.user!.companyId, req.user!.userId, req.body);
+    await track(req.user!, 'invoice.created', 'Invoice', { id: invoice.id, label: invoice.invoiceNumber }, { total: invoice.total });
     res.status(201).json(invoice);
   } catch (err) {
     next(err);
@@ -44,6 +46,7 @@ export async function update(req: AuthedRequest, res: Response, next: NextFuncti
 export async function updateStatus(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
     const invoice = await invoicesService.updateInvoiceStatus(req.user!.companyId, req.params.id, req.body.status, await invoiceScope(req.user!));
+    await track(req.user!, 'invoice.status_changed', 'Invoice', { id: invoice.id, label: invoice.invoiceNumber }, { to: invoice.status });
     res.json(invoice);
   } catch (err) {
     next(err);

@@ -5,7 +5,7 @@ import { assertSameCompanyRefs, withScope } from '@/utils/scope';
 // Visibility filter from utils/scope.ts invoiceScope().
 type Scope = Record<string, unknown>;
 
-const POPULATE_CUSTOMER = { path: 'customerId', select: 'name email phone' };
+const POPULATE_CUSTOMER = { path: 'customerId', select: 'name email phone address gstin' };
 
 export function computeTotals(lineItems: { quantity: number; unitPrice: number }[], taxRate = 0) {
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
@@ -19,6 +19,14 @@ export function computeTotals(lineItems: { quantity: number; unitPrice: number }
 // an invoice paid/cancelled via updateInvoiceStatus.
 function withDerivedStatus(doc: any) {
   const json = doc.toJSON();
+  // The app reads `customer` (details) and `customerId` (id string);
+  // populate() puts the details on customerId, so split them.
+  if (json.customerId && typeof json.customerId === 'object') {
+    json.customer = json.customerId;
+    json.customerId = json.customerId.id;
+  } else {
+    json.customer = null;
+  }
   if (json.status === 'PENDING' && new Date(json.dueDate) < new Date()) {
     json.status = 'OVERDUE';
   }

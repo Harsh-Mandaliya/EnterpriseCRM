@@ -41,6 +41,7 @@ interface DemoCompany {
   /** Keys of the users in the manager's team (the other sales rep stays outside). */
   team: { name: string; territory: string; manager: string; members: string[] };
   branding: Record<string, unknown>;
+  billing: Record<string, string>;
   products: { name: string; sku: string; category: string; price: number; stockQty: number; description: string }[];
   customers: { name: string; email: string; phone: string; gstin?: string; address: string; owner: string }[];
   leads: { name: string; email?: string; phone?: string; source: string; status: string; assignee: string; customer?: number }[];
@@ -63,6 +64,14 @@ const companies: DemoCompany[] = [
       { key: 'employee', name: 'Dhruv Joshi', email: 'dhruv.emp@sgtextiles.com', password: 'Dhruv@123456', role: 'EMPLOYEE' },
     ],
     team: { name: 'Gujarat Sales', territory: 'Gujarat', manager: 'manager', members: ['sales', 'employee'] },
+    billing: {
+      legalName: 'Shree Ganesh Textiles Pvt Ltd',
+      address: 'Plot 42, Textile Market, Ring Road, Surat, Gujarat 395002',
+      gstin: '24AAKCS4821M1Z3',
+      phone: '+91 261 400 1122',
+      email: 'accounts@sgtextiles.com',
+      bankDetails: 'HDFC Bank, Ring Road branch · A/c 50200012345678 · IFSC HDFC0001234 · UPI sgtextiles@hdfcbank',
+    },
     branding: {
       displayName: 'SG Textiles CRM',
       preset: 'sunset',
@@ -140,6 +149,14 @@ const companies: DemoCompany[] = [
       { key: 'employee', name: 'Rohan Verma', email: 'rohan.emp@novaelectronics.com', password: 'Rohan@123456', role: 'EMPLOYEE' },
     ],
     team: { name: 'South Enterprise', territory: 'Bengaluru & Chennai', manager: 'manager', members: ['sales', 'employee'] },
+    billing: {
+      legalName: 'Nova Electronics Pvt Ltd',
+      address: '3rd Floor, Tech Square, Outer Ring Road, Bengaluru, Karnataka 560103',
+      gstin: '29AAHCN7311K1Z8',
+      phone: '+91 80 4567 8900',
+      email: 'billing@novaelectronics.com',
+      bankDetails: 'ICICI Bank, Koramangala · A/c 001905012345 · IFSC ICIC0000019 · UPI nova@icici',
+    },
     branding: {
       displayName: 'Nova CRM',
       preset: 'royal',
@@ -273,7 +290,7 @@ async function seedCompany(c: DemoCompany) {
     throw err;
   }
 
-  await call('PATCH', '/company/profile', ownerToken, { slug: c.code, timezone: 'Asia/Kolkata', currency: 'INR', locale: 'en-IN' });
+  await call('PATCH', '/company/profile', ownerToken, { slug: c.code, timezone: 'Asia/Kolkata', currency: 'INR', locale: 'en-IN', billing: c.billing });
   await call('PATCH', '/company/branding', ownerToken, c.branding);
   console.log(`  company code: ${c.code}, theme: ${c.branding.preset}`);
 
@@ -418,10 +435,16 @@ async function spreadDates(seeded: { companyId: string; deals: { id: string; mon
     await db.collection('opportunities').updateOne({ _id: new Types.ObjectId(d.id), companyId }, { $set: { createdAt: at, updatedAt: at } });
   }
   for (const i of seeded.invoices) {
-    if (i.monthsAgo === 0) continue;
-    const at = monthsBack(i.monthsAgo);
-    await db.collection('invoices').updateOne({ _id: new Types.ObjectId(i.id), companyId }, { $set: { createdAt: at, updatedAt: at } });
-    await db.collection('payments').updateMany({ invoiceId: new Types.ObjectId(i.id), companyId }, { $set: { paidAt: at, createdAt: at } });
+    const doc = await db.collection('invoices').findOne({ _id: new Types.ObjectId(i.id), companyId });
+    if (!doc) continue;
+    const at = i.monthsAgo === 0 ? new Date(doc.createdAt) : monthsBack(i.monthsAgo);
+    // Issue date never after the due date: at most 15 days before it.
+    const latestIssue = new Date(new Date(doc.dueDate).getTime() - 15 * 86_400_000);
+    const issueDate = at < latestIssue ? at : latestIssue;
+    await db.collection('invoices').updateOne({ _id: doc._id }, { $set: { createdAt: issueDate, updatedAt: at, issueDate } });
+    if (i.monthsAgo > 0) {
+      await db.collection('payments').updateMany({ invoiceId: doc._id, companyId }, { $set: { paidAt: at, createdAt: at } });
+    }
   }
 }
 

@@ -2,9 +2,10 @@ import { CalendarEvent } from '@/models';
 import { ApiError } from '@/utils/apiError';
 import { assertSameCompanyRefs } from '@/utils/scope';
 
-// Everyone in the company can read the shared calendar, but
-// SALES/EMPLOYEE may only change events they created
-// (scope = { createdById: <me> } from utils/scope.ts).
+// Visibility follows the hierarchy (utils/scope.ts
+// eventVisibilityScope): company events from OWNER/ADMIN, events
+// created in the caller's scope and events they're invited to.
+// SALES/EMPLOYEE may only change events they created.
 type Scope = Record<string, unknown>;
 
 async function assertEventRefs(companyId: string, input: Record<string, unknown>) {
@@ -25,8 +26,12 @@ const POPULATE = [
   { path: 'attendeeIds', select: 'name' },
 ];
 
-export async function listEvents(companyId: string, params: { from?: string; to?: string }) {
-  const filter: Record<string, unknown> = { companyId };
+export async function listEvents(
+  companyId: string,
+  params: { from?: string; to?: string },
+  visibility: Scope = {},
+) {
+  const filter: Record<string, unknown> = { ...visibility, companyId };
   if (params.from || params.to) {
     const range: { $gte?: Date; $lte?: Date } = {};
     if (params.from) range.$gte = new Date(params.from);

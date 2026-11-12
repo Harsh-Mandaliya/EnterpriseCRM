@@ -80,7 +80,7 @@ const STAGES: {
   {
     value: 'NEW',
     label: 'New',
-    icon: 'sparkles-outline',
+    icon: 'add-circle-outline',
   },
   {
     value: 'CONTACTED',
@@ -1478,7 +1478,7 @@ export function LeadDetailScreen({
                   }
                 >
                   <Ionicons
-                    name="sparkles"
+                    name="bulb"
                     size={18}
                     color={colors.textInverse}
                   />

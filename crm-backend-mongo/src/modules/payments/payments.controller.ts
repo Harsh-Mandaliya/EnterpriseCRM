@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import { track } from '@/utils/track';
 import { AuthedRequest } from '@/middlewares/auth.middleware';
 import * as paymentsService from '@/modules/payments/payments.service';
 import { invoiceScope, paymentScope } from '@/utils/scope';
@@ -16,6 +17,8 @@ export async function list(req: AuthedRequest, res: Response, next: NextFunction
 export async function create(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
     const result = await paymentsService.createPayment(req.user!.companyId, req.user!.userId, req.body, await invoiceScope(req.user!));
+    const paid = result.payment as { id?: string; reference?: string; amount?: number; method?: string; invoiceId?: unknown };
+    await track(req.user!, 'payment.recorded', 'Payment', { id: paid.id, label: paid.reference ?? null }, { amount: paid.amount, method: paid.method, invoiceId: String(paid.invoiceId), invoiceStatus: result.invoiceStatus });
     res.status(201).json(result);
   } catch (err) {
     next(err);

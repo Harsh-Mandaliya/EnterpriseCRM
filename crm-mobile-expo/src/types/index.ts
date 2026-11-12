@@ -101,6 +101,15 @@ export interface UserThemePreferences {
   colorMode: ThemeColorMode | null;
 }
 
+export interface CompanyBilling {
+  legalName: string | null;
+  address: string | null;
+  gstin: string | null;
+  phone: string | null;
+  email: string | null;
+  bankDetails: string | null;
+}
+
 export interface BrandingResponse {
   company: {
     id: string;
@@ -109,6 +118,8 @@ export interface BrandingResponse {
     timezone: string;
     locale: string;
     currency: string;
+    /** Printed on invoices and receipts (v1.4). */
+    billing?: CompanyBilling;
   };
   settings: CompanyBrandingSettings;
   preferences: UserThemePreferences;
@@ -128,6 +139,7 @@ export interface CompanyProfileUpdate {
   timezone?: string;
   locale?: string;
   currency?: string;
+  billing?: Partial<CompanyBilling>;
 }
 
 export interface PublicBranding {
@@ -434,6 +446,8 @@ export interface Invoice {
     name: string;
     email: string | null;
     phone: string | null;
+    address?: string | null;
+    gstin?: string | null;
   } | null;
 
   lineItems: InvoiceLineItem[];
@@ -551,6 +565,8 @@ export interface CalendarEvent {
     id: string;
     name: string;
   }[];
+
+  createdById?: string | null;
 
   createdAt: string;
 }

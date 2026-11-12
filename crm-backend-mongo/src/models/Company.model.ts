@@ -51,6 +51,15 @@ export interface CompanyBranding {
   allowUserThemes: boolean;
 }
 
+export interface CompanyBilling {
+  legalName: string | null;
+  address: string | null;
+  gstin: string | null;
+  phone: string | null;
+  email: string | null;
+  bankDetails: string | null;
+}
+
 export interface CompanyDoc {
   _id: Types.ObjectId;
   name: string;
@@ -60,6 +69,8 @@ export interface CompanyDoc {
   timezone: string;
   locale: string;
   currency: string;
+  /** Printed on invoices and receipts (v1.4). */
+  billing: CompanyBilling;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,6 +117,14 @@ const companySchema = new Schema<CompanyDoc>(
     timezone: { type: String, default: 'Asia/Kolkata', maxlength: 64 },
     locale: { type: String, default: 'en-IN', maxlength: 16 },
     currency: { type: String, default: 'INR', match: /^[A-Z]{3}$/ },
+    billing: {
+      legalName: { type: String, default: null, maxlength: 160 },
+      address: { type: String, default: null, maxlength: 400 },
+      gstin: { type: String, default: null, maxlength: 15 },
+      phone: { type: String, default: null, maxlength: 30 },
+      email: { type: String, default: null, maxlength: 254 },
+      bankDetails: { type: String, default: null, maxlength: 400 },
+    },
   },
   { timestamps: true },
 );

@@ -2,6 +2,10 @@ import React from 'react';
 import { TaskFormScreen } from '@/screens/forms/TaskFormScreen';
 import { EventFormScreen } from '@/screens/forms/EventFormScreen';
 import { AnalyticsScreen } from '@/screens/analytics/AnalyticsScreen';
+import { AiCenterScreen } from '@/screens/ai/AiCenterScreen';
+import { ReportsScreen } from '@/screens/reports/ReportsScreen';
+import { TeamActivityScreen } from '@/screens/team/TeamActivityScreen';
+import { InvoiceDetailScreen } from '@/screens/invoices/InvoiceDetailScreen';
 
 import type { AppStackParamList } from '@/navigation/types';
 
@@ -83,9 +87,8 @@ export function EmployeeNavigator() {
 
       <Stack.Screen
         name="CustomerDetail"
-        component={
-          CustomerDetailScreen
-        }
+        component={CustomerDetailScreen}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -105,9 +108,8 @@ export function EmployeeNavigator() {
 
       <Stack.Screen
         name="Calendar"
-        component={
-          CalendarScreen
-        }
+        component={CalendarScreen}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -170,6 +172,27 @@ export function EmployeeNavigator() {
         }}
       />
 
+      {/* v1.4 */}
+      <Stack.Screen
+        name="InvoiceDetail"
+        component={InvoiceDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="TeamActivity"
+        component={TeamActivityScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AiCenter"
+        component={AiCenterScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

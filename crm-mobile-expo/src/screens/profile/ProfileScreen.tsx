@@ -826,6 +826,38 @@ export function ProfileScreen({
           <ChevronIcon />
         </Pressable>
 
+        {/* ====================================================
+            INSIGHTS & DOCUMENTS (v1.4)
+        ==================================================== */}
+
+        {(
+          [
+            { route: 'Reports', icon: 'bar-chart-outline', title: 'Reports & analysis', subtitle: 'Sales, money owed, team — download as PDF', show: true },
+            { route: 'AiCenter', icon: 'analytics-outline', title: 'AI Center', subtitle: 'Daily briefing, deal win chances, lead scores', show: true },
+            { route: 'TeamActivity', icon: 'people-circle-outline', title: profile?.role === 'SALES' || profile?.role === 'EMPLOYEE' ? 'My activity' : 'Team activity', subtitle: 'Who did what — and what is still pending', show: true },
+            { route: 'CompanyBilling', icon: 'business-outline', title: 'Billing details', subtitle: 'Address, GSTIN and bank details printed on bills', show: profile?.role === 'OWNER' },
+          ] as const
+        )
+          .filter(item => item.show)
+          .map(item => (
+            <Pressable
+              key={item.route}
+              style={({ pressed }) => [styles.menuCard, pressed && styles.menuPressed]}
+              onPress={() => navigation.navigate(item.route)}
+              accessibilityRole="button"
+              accessibilityLabel={item.title}
+            >
+              <View style={styles.menuIcon}>
+                <Ionicons name={item.icon} size={21} color={colors.primary} />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitle}>{item.title}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+              <ChevronIcon />
+            </Pressable>
+          ))}
+
 
         {/* ====================================================
             THEME & BRANDING (all roles; editing company branding

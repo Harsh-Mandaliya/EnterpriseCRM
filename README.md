@@ -36,20 +36,23 @@ Every company gets its own look (logo, name, five theme presets, brand colours, 
 **Sales**
 - **Leads** — capture, assign, qualify, convert to a customer + deal in one step, duplicate warnings on the same e-mail or phone.
 - **Deals (pipeline)** — kanban board by stage, list view, move a deal to any stage, win probability and weighted forecast.
-- **Customers** — owners, sharing with colleagues, GSTIN, billing address.
-- **Tasks & calls** — tasks, calls, e-mails, meetings and notes linked to leads, customers or deals; due dates and overdue tracking.
-- **Calendar** — shared team calendar with meetings, calls, follow-ups and deadlines.
+- **Customers** — owners, sharing with colleagues, GSTIN, billing address; a customer page with account health, deals, invoices, payments, tasks, meetings, history and a downloadable **statement (PDF)**; call / WhatsApp / e-mail in one tap.
+- **Tasks & calls** — tasks, calls, e-mails, meetings and notes linked to leads, customers or deals; due dates and overdue tracking. Each person sees their own tasks, managers their team's, owner/admin everyone's.
+- **Calendar** — month, week and agenda views, type filters, "mine only", event details with linked customer/lead/deal and attendees, PDF agenda. Company events from the owner/admin are shared; other events follow the hierarchy and invitations.
 
 **Billing**
 - **Products** — catalogue with price and stock.
-- **Invoices** — line items from the catalogue, GST rate, automatic totals and numbering (`INV-0001…`), overdue detection.
-- **Payments** — partial payments, balance due; an invoice becomes PAID when fully paid.
+- **Invoices** — line items from the catalogue, GST rate, automatic totals and numbering (`INV-0001…`), overdue detection; invoice page with paid/balance progress and history; **download the bill as a GST tax-invoice PDF** (both parties, GSTINs, amount in words, bank details).
+- **Payments** — partial payments, balance due; an invoice becomes PAID when fully paid; **payment receipt PDF** for every payment.
+- **Company billing details** — legal name, address, GSTIN, phone, e-mail and bank details printed on every bill and receipt (owner only).
 
 **Insight**
 - **Dashboards** per role (Owner, Admin, Manager, Sales, Employee).
 - **Analytics** — pipeline, lead funnel, monthly deal value, tasks, collected revenue, forecast, top customers, team leaderboard.
-- **AI Center** — rule-based lead scoring, sales forecast, next-best actions and at-risk customers computed from your own data (no external AI service).
-- **Alerts** — in-app notifications for new assignments, deals, invoices and meetings.
+- **Reports & Analysis** — Overview, Sales, Money (billed / collected / outstanding, ageing, who pays and who owes, payment methods, who collected) and Team; every report downloads as a PDF. Scoped to the user (company / team / own).
+- **Team activity — who did what** — per-person performance (leads, deals, tasks done and late, invoiced, collected) with flags for what was not done, a day-by-day activity feed, and the full history of any deal, lead, customer or invoice.
+- **AI Center** — daily briefing, deal win probability with the reasons and a next step, lead scores, at-risk customers, revenue trend — all rule-based from your own data (no external AI service), downloadable as PDF.
+- **Alerts** — "Needs attention" (overdue tasks and invoices, stalled deals, cold leads, meetings in the next 48 h) with *why it matters*, plus the inbox of assignments.
 
 **Company & team**
 - Multi-company: each company's data is fully separated.
@@ -274,6 +277,8 @@ Indexes, relationships and upgrade notes: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 | **Sales** | Only their own leads, deals and customers (and customers shared with them) | Create and edit their own sales records, invoices, payments |
 | **Employee** | Only their own records | Tasks, calendar, notes; view-only for sales data |
 
+The same hierarchy applies to **tasks, calendar, alerts, reports, team activity and AI insights**: Owner/Admin → whole company, Manager → their team and themselves, Sales/Employee → their own work.
+
 Rules are enforced **on the server** for every request; the app only hides buttons a role can't use. Full matrix: [docs/ROLE_PERMISSIONS.md](docs/ROLE_PERMISSIONS.md).
 
 ---
@@ -395,7 +400,8 @@ npx expo start
 2. Profile → **Manage team** → add Admin / Manager / Sales / Employee users.
 3. Profile → **Teams & territories** → group sales reps under a manager (optional).
 4. Profile → **Theme & branding** → logo, colours, theme per role. Share the **company code** so teammates see your branding on the sign-in screen.
-5. Start adding leads, deals, customers, tasks and invoices.
+5. Profile → **Billing details** → address, GSTIN and bank details for your bills and receipts.
+6. Start adding leads, deals, customers, tasks and invoices.
 
 ### Useful scripts
 
@@ -407,6 +413,7 @@ npx expo start
 | backend | `npm run typecheck` | TypeScript check |
 | backend | `npm run migrate` | Upgrade an existing database (back up first) |
 | backend | `npm run seed:demo` | Create two demo companies with data in every module (see `docs/DEMO_DATA.md`) |
+| backend | `npm run backfill:worklog -- [company codes] [--dry]` | Build "who did what" history for records created before v1.4 (adds entries only) |
 | app | `npx expo start` | Start the app |
 | app | `npm test` | App tests |
 | app | `npm run typecheck` / `npm run lint` | Code checks |
@@ -489,12 +496,13 @@ Base URL: `http://<host>:4000/api/v1` · JSON · `Authorization: Bearer <access 
 |---|---|
 | Health | `GET /health`, `GET /ready` |
 | Auth | `POST /auth/register`, `/login`, `/refresh`, `/logout`, `/logout-all`, `/forgot-password`, `/reset-password`, `/google` · `GET /auth/me` |
-| Company & branding | `GET /company/public/:code`, `GET/PATCH /company/branding`, `PATCH /company/profile`, `PATCH /company/preferences` |
+| Company & branding | `GET /company/public/:code`, `GET/PATCH /company/branding`, `PATCH /company/profile` (incl. `billing`), `PATCH /company/preferences` |
 | Users & teams | `/users`, `/teams` (CRUD) |
 | Sales | `/customers`, `/leads` (+ `/:id/convert`, `/duplicates`, `/export`, `/import`), `/opportunities` (+ `/:id/stage`) |
 | Work | `/activities` (+ `/:id/complete`), `/calendar`, `/notifications` |
 | Billing | `/products`, `/invoices` (+ `/:id/status`), `/payments` |
 | Insight | `/dashboard/*-summary`, `/reports/sales|leads|deals|top-customers`, `/ai/*` |
+| Insight (v1.4, every role, scoped) | `GET /reports/team-performance?days=`, `/reports/work-log?days=&userId=&targetType=&targetId=`, `/reports/receivables`, `/notifications/attention`, `/ai/deal-insights`, `/ai/briefing` |
 
 Every endpoint, request body and error code: [docs/API.md](docs/API.md).
 

@@ -189,3 +189,44 @@ export async function paymentScope(
   const invoiceIds = await Invoice.find({ companyId: user.companyId, ...scope }).distinct('_id');
   return { invoiceId: { $in: invoiceIds } };
 }
+
+/* ============================================================
+   TASK / ACTIVITY SCOPE (v1.4)
+   OWNER / ADMIN see every task; a team manager sees tasks
+   assigned to or created by the team; SALES / EMPLOYEE see the
+   tasks assigned to them or that they created.
+============================================================ */
+
+export async function activityScope(
+  user: AuthUser,
+): Promise<Record<string, unknown>> {
+  const ids = await visibleUserIds(user);
+  if (ids === null) return {};
+  return {
+    $or: [{ assignedToId: { $in: ids } }, { createdById: { $in: ids } }],
+  };
+}
+
+/* ============================================================
+   CALENDAR VISIBILITY (v1.4)
+   Events created by OWNER / ADMIN are company events and visible
+   to everyone. Otherwise a user sees events created by people in
+   their scope (own / team) and events they are invited to.
+============================================================ */
+
+export async function eventVisibilityScope(
+  user: AuthUser,
+): Promise<Record<string, unknown>> {
+  const ids = await visibleUserIds(user);
+  if (ids === null) return {};
+  const leaders = await User.find({
+    companyId: user.companyId,
+    role: { $in: ['OWNER', 'ADMIN'] },
+  }).distinct('_id');
+  return {
+    $or: [
+      { createdById: { $in: [...ids, ...leaders] } },
+      { attendeeIds: new Types.ObjectId(user.userId) },
+    ],
+  };
+}

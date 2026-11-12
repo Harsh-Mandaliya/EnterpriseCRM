@@ -19,9 +19,12 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
+  Alert,
 } from 'react-native';
 
 import { listPayments } from '@/api/payments.api';
+import { usePdfCompany } from '@/hooks/usePdfCompany';
+import { exportPdf, receiptHtml } from '@/utils/pdf';
 import { colors } from '@/theme/colors';
 import {
   typography,
@@ -56,6 +59,37 @@ export function PaymentListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const canRecord = useCan('payment.record');
   const [items, setItems] = useState<Payment[]>([]);
+  const [receiptFor, setReceiptFor] = useState<string | null>(null);
+  const pdfCompany = usePdfCompany();
+
+  // v1.4: printable receipt for one payment (paid-to-date counts every
+  // payment on the same invoice up to and including this one).
+  async function downloadReceipt(payment: Payment) {
+    const invoice = typeof payment.invoiceId === 'object' ? payment.invoiceId : null;
+    const invoiceId = invoice?.id ?? (typeof payment.invoiceId === 'string' ? payment.invoiceId : null);
+    const customer = typeof payment.customerId === 'object' ? payment.customerId : null;
+    setReceiptFor(payment.id);
+    try {
+      const paidToDate = items
+        .filter(p => (typeof p.invoiceId === 'object' ? p.invoiceId.id : p.invoiceId) === invoiceId && new Date(p.paidAt) <= new Date(payment.paidAt))
+        .reduce((sum, p) => sum + p.amount, 0);
+      await exportPdf(
+        receiptHtml({
+          payment,
+          invoiceNumber: invoice?.invoiceNumber ?? 'Invoice',
+          invoiceTotal: invoice?.total ?? payment.amount,
+          paidToDate,
+          customerName: customer?.name ?? 'Customer',
+          company: await pdfCompany(),
+        }),
+        `Receipt-${invoice?.invoiceNumber ?? payment.id.slice(-6)}.pdf`,
+      );
+    } catch {
+      Alert.alert('Could not create the receipt', 'Please try again.');
+    } finally {
+      setReceiptFor(null);
+    }
+  }
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -345,7 +379,13 @@ export function PaymentListScreen() {
             invoice?.invoiceNumber ?? 'Invoice';
 
           return (
-            <View style={styles.paymentCard}>
+            <Pressable
+              style={({ pressed }) => [styles.paymentCard, pressed && { opacity: 0.85 }]}
+              disabled={!invoice}
+              onPress={() => invoice && navigation.navigate('InvoiceDetail', { invoiceId: invoice.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`Payment from ${customerName} for ${invoiceNumber}`}
+            >
               {/* LEFT ICON */}
 
               <View style={styles.paymentIcon}>
@@ -398,8 +438,23 @@ export function PaymentListScreen() {
                     PAID
                   </Text>
                 </View>
+
+                <Pressable
+                  onPress={() => downloadReceipt(item)}
+                  disabled={receiptFor === item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Download receipt for ${invoiceNumber}`}
+                  style={({ pressed }) => [styles.receiptButton, pressed && { opacity: 0.7 }]}
+                  hitSlop={6}
+                >
+                  {receiptFor === item.id ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.receiptText}>⬇ Receipt</Text>
+                  )}
+                </Pressable>
               </View>
-            </View>
+            </Pressable>
           );
         }}
       />
@@ -414,6 +469,22 @@ export function PaymentListScreen() {
 ============================================================ */
 
 const styles = createThemedStyles(() => StyleSheet.create({
+  receiptButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    minWidth: 82,
+    alignItems: 'center',
+  },
+  receiptText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
   /* ==========================================================
      CONTAINER
   ========================================================== */

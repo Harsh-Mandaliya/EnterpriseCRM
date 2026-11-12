@@ -7,6 +7,9 @@ import { TaskFormScreen } from '@/screens/forms/TaskFormScreen';
 import { EventFormScreen } from '@/screens/forms/EventFormScreen';
 import { PipelineScreen } from '@/screens/pipeline/PipelineScreen';
 import { AnalyticsScreen } from '@/screens/analytics/AnalyticsScreen';
+import { ReportsScreen } from '@/screens/reports/ReportsScreen';
+import { TeamActivityScreen } from '@/screens/team/TeamActivityScreen';
+import { InvoiceDetailScreen } from '@/screens/invoices/InvoiceDetailScreen';
 
 import type { AppStackParamList } from '@/navigation/types';
 import {
@@ -119,9 +122,7 @@ export function SalesNavigator() {
       <Stack.Screen
         name="CustomerDetail"
         component={CustomerDetailScreen}
-        options={{
-          title: 'Customer',
-        }}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -232,9 +233,7 @@ export function SalesNavigator() {
       <Stack.Screen
         name="Calendar"
         component={CalendarScreen}
-        options={{
-          title: 'My Calendar',
-        }}
+        options={{ headerShown: false }}
       />
 
       {/* =====================================================
@@ -259,9 +258,7 @@ export function SalesNavigator() {
       <Stack.Screen
         name="AiCenter"
         component={AiCenterScreen}
-        options={{
-          title: 'AI Assistant',
-        }}
+        options={{ headerShown: false }}
       />
 
       {/* =====================================================
@@ -346,6 +343,22 @@ export function SalesNavigator() {
         }}
       />
 
+      {/* v1.4 */}
+      <Stack.Screen
+        name="InvoiceDetail"
+        component={InvoiceDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="TeamActivity"
+        component={TeamActivityScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

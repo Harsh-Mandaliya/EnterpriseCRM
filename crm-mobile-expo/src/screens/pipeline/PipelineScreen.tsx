@@ -319,6 +319,18 @@ export function PipelineScreen({ navigation }: Props) {
             ) : (
               <Text style={styles.sheetSub}>Your role can view deals but not change them.</Text>
             )}
+            <PressableScale
+              onPress={() => {
+                const deal = selected;
+                setSelected(null);
+                navigation.navigate('TeamActivity', { targetType: 'Opportunity', targetId: deal.id, title: deal.title });
+              }}
+              accessibilityRole="button"
+              style={styles.editButton}
+            >
+              <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
+              <Text style={styles.editText}>Deal history — who did what</Text>
+            </PressableScale>
           </View>
         ) : null}
       </Modal>

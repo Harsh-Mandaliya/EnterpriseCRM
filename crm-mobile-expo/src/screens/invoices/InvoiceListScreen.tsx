@@ -14,7 +14,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import {
   listInvoices,
-  updateInvoiceStatus,
 } from '@/api/invoices.api';
 
 import { colors } from '@/theme/colors';
@@ -81,10 +80,10 @@ export function InvoiceListScreen({
   navigation,
 }: Props) {
   const canCreateInvoice = useCan('invoice.create');
+  const canRecordPayment = useCan('payment.record');
   const [items, setItems] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [payingId, setPayingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   /* ==========================================================
@@ -129,33 +128,6 @@ export function InvoiceListScreen({
       setRefreshing(false);
     }
   }, [load]);
-
-  /* ==========================================================
-     MARK PAID
-  ========================================================== */
-
-  async function handleMarkPaid(id: string) {
-    if (payingId) {
-      return;
-    }
-
-    setPayingId(id);
-    setError(null);
-
-    try {
-      await updateInvoiceStatus(id, 'PAID');
-
-      await load();
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.error ??
-          err?.response?.data?.message ??
-          "Couldn't update the invoice.",
-      );
-    } finally {
-      setPayingId(null);
-    }
-  }
 
   /* ==========================================================
      LOADING
@@ -230,15 +202,20 @@ export function InvoiceListScreen({
           const currentStatusColor =
             statusColor(item.status);
 
-          const isPaying =
-            payingId === item.id;
-
+          // v1.4: record a real payment (keeps the invoice, receipts and
+          // reports consistent) instead of flipping the status to PAID.
           const canMarkPaid =
+            canRecordPayment &&
             item.status !== 'PAID' &&
             item.status !== 'CANCELLED';
 
           return (
-            <View style={styles.row}>
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.buttonPressed]}
+              onPress={() => navigation.navigate('InvoiceDetail', { invoiceId: item.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${item.invoiceNumber}`}
+            >
               {/* ==================================================
                   LEFT CONTENT
               ================================================== */}
@@ -291,43 +268,29 @@ export function InvoiceListScreen({
                       },
                     ]}
                   >
-                    {item.status}
+                    {item.status === 'PENDING' ? 'DUE' : item.status}
                   </Text>
                 </View>
 
                 {canMarkPaid && (
                   <Pressable
-                    disabled={isPaying}
                     onPress={() =>
-                      handleMarkPaid(item.id)
+                      navigation.navigate('PaymentForm', { invoiceId: item.id })
                     }
+                    accessibilityRole="button"
+                    accessibilityLabel={`Record payment for ${item.invoiceNumber}`}
                     style={({ pressed }) => [
                       styles.payButton,
-                      pressed &&
-                        !isPaying &&
-                        styles.buttonPressed,
-                      isPaying &&
-                        styles.payButtonDisabled,
+                      pressed && styles.buttonPressed,
                     ]}
                   >
-                    {isPaying ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={colors.success}
-                      />
-                    ) : (
-                      <Text
-                        style={
-                          styles.payButtonText
-                        }
-                      >
-                        Mark Paid
-                      </Text>
-                    )}
+                    <Text style={styles.payButtonText}>
+                      Record payment
+                    </Text>
                   </Pressable>
                 )}
               </View>
-            </View>
+            </Pressable>
           );
         }}
       />

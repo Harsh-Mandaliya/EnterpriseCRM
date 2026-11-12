@@ -6,6 +6,8 @@ import {
 import { AuthedRequest } from '@/middlewares/auth.middleware';
 
 import * as activitiesService from '@/modules/activities/activities.service';
+import { activityScope } from '@/utils/scope';
+import { track } from '@/utils/track';
 
 /* ============================================================
    LIST ACTIVITIES
@@ -31,6 +33,7 @@ export async function list(
           leadId,
           opportunityId,
         },
+        await activityScope(req.user!),
       );
 
     res.json(activities);
@@ -55,6 +58,8 @@ export async function create(
         req.user!.userId,
         req.body,
       );
+
+    await track(req.user!, 'task.created', 'Activity', { id: activity.id, label: activity.summary }, { type: activity.type, assignedToId: activity.assignedToId ? String(activity.assignedToId) : null });
 
     res
       .status(201)
@@ -91,7 +96,10 @@ export async function complete(
         req.user!.companyId,
         req.params.id,
         req.user!.userId,
+        await activityScope(req.user!),
       );
+
+    await track(req.user!, 'task.completed', 'Activity', { id: activity.id, label: activity.summary }, { type: activity.type });
 
     res.json(activity);
   } catch (err) {

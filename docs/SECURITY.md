@@ -15,7 +15,9 @@
 ### Authorization
 - Central role groups in `src/utils/permissions.ts`, enforced by `requireRole` on routes.
 - Company scoping on every query using the company from the database, never a client value.
-- Record scoping for SALES/EMPLOYEE (own) and team managers (team members): leads, deals, customers (owner or shared), invoices and payments (via customer or creator), calendar edits, duplicate checks and CSV exports; out-of-scope ids return 404.
+- Record scoping for SALES/EMPLOYEE (own) and team managers (team members): leads, deals, customers (owner or shared), invoices and payments (via customer or creator), **tasks and calendar reading (v1.4)**, calendar edits, duplicate checks, CSV exports, reports, work log, alerts and AI insights; out-of-scope ids return 404.
+- Work log (`work.*` audit entries) records who created, moved, completed or collected what; no secrets or personal contact data are stored in it.
+- Company billing details are returned only to signed-in users of that company, never by the public company lookup.
 - Cross-tenant reference checks for `customerId`, `leadId`, `opportunityId`, `assignedToId`, `ownerId`, `attendeeIds`.
 - Role hierarchy for team management (ADMIN can't manage ADMIN/OWNER; no self role change or self delete).
 

@@ -1,6 +1,6 @@
 {
   "name": "crm-backend-mongo",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "main": "dist/server.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "test": "tsx --test --test-concurrency=1 \"tests/**/*.test.ts\"",
     "migrate": "tsx scripts/migrate.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
+    "backfill:worklog": "tsx scripts/backfill-worklog.ts",
     "audit:prod": "npm audit --omit=dev"
   },
   "dependencies": {

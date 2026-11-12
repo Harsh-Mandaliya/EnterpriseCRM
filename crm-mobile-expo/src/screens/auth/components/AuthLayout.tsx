@@ -12,7 +12,6 @@ import {
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CompanyBrand } from '@/components/common/CompanyBrand';
 import { motion, useReducedMotion } from '@/components/motion/motion';
 import { mix } from '@/theme/colorUtils';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -121,9 +120,7 @@ export function AuthLayout({
         <View style={[styles.widePanel]}>
           {backdrop}
           <View style={styles.widePanelContent}>
-            <View style={styles.brandPill}>
-              <CompanyBrand size={44} />
-            </View>
+            <AuthBrand size={46} />
             <Text style={[styles.wideHeadline, { color: theme.colors.onPrimary }]}>
               Every lead, deal and invoice — in one place.
             </Text>
@@ -154,9 +151,7 @@ export function AuthLayout({
       >
         <View style={[styles.hero, { paddingTop: insets.top + 24 }]}>
           {backdrop}
-          <View style={styles.brandPill}>
-            <CompanyBrand size={40} />
-          </View>
+          <AuthBrand size={42} />
         </View>
         <View style={styles.scroll}>
           {card}
@@ -167,16 +162,58 @@ export function AuthLayout({
   );
 }
 
+/**
+ * Brand block on the coloured hero. Fixed dark text on a light pill so
+ * the full name stays readable in dark mode, and no flex-shrink so
+ * Android never collapses it to just the initial.
+ */
+function AuthBrand({ size }: { size: number }) {
+  const theme = useTheme();
+  const name = theme.brand.displayName || 'EnterpriseCRM';
+  const initials =
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(word => word[0]?.toUpperCase() ?? '')
+      .join('') || 'E';
+  return (
+    <View style={styles.brandPill} accessibilityRole="header" accessibilityLabel={name}>
+      <View style={[styles.brandBadge, { width: size, height: size, borderRadius: size / 3, backgroundColor: theme.colors.primary }]}>
+        <Text style={[styles.brandInitials, { fontSize: size * 0.4, color: theme.colors.onPrimary }]}>{initials}</Text>
+      </View>
+      <View>
+        <Text style={styles.brandName} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={styles.brandTagline} numberOfLines={1}>
+          Sales · Billing · Teams
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   hero: { height: 230, paddingHorizontal: 24, overflow: 'hidden' },
   brandPill: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    maxWidth: '100%',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingLeft: 8,
+    paddingRight: 16,
   },
+  brandBadge: { alignItems: 'center', justifyContent: 'center' },
+  brandInitials: { fontWeight: '800' },
+  // Fixed colours: the pill is always light, whatever the theme.
+  brandName: { color: '#0F172A', fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  brandTagline: { color: '#475569', fontSize: 11, fontWeight: '600', marginTop: 1 },
   scroll: { paddingHorizontal: 18, marginTop: -110 },
   card: {
     width: '100%',

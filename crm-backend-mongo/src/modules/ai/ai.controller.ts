@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthedRequest } from '@/middlewares/auth.middleware';
 import * as aiService from '@/modules/ai/ai.service';
+import * as dealInsightsService from '@/modules/ai/dealInsights.service';
 import { invoiceScope, scopeFor } from '@/utils/scope';
 
 export async function leadScores(req: AuthedRequest, res: Response, next: NextFunction) {
@@ -40,6 +41,24 @@ export async function customerInsights(req: AuthedRequest, res: Response, next: 
       invoices: await invoiceScope(req.user!),
     });
     res.json(insights);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/* v1.4 — open to every role, hierarchy-scoped inside. */
+
+export async function dealInsights(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    res.json(await dealInsightsService.dealInsights(req.user!));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function briefing(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    res.json(await dealInsightsService.briefing(req.user!));
   } catch (err) {
     next(err);
   }

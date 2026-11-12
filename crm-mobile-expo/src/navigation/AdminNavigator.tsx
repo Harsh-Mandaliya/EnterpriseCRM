@@ -7,6 +7,8 @@ import { TaskFormScreen } from '@/screens/forms/TaskFormScreen';
 import { EventFormScreen } from '@/screens/forms/EventFormScreen';
 import { PipelineScreen } from '@/screens/pipeline/PipelineScreen';
 import { AnalyticsScreen } from '@/screens/analytics/AnalyticsScreen';
+import { TeamActivityScreen } from '@/screens/team/TeamActivityScreen';
+import { InvoiceDetailScreen } from '@/screens/invoices/InvoiceDetailScreen';
 
 import type { AppStackParamList } from '@/navigation/types';
 import {
@@ -233,12 +235,8 @@ export function AdminNavigator() {
 
       <Stack.Screen
         name="CustomerDetail"
-        component={
-          CustomerDetailScreen
-        }
-        options={{
-          title: 'Customer',
-        }}
+        component={CustomerDetailScreen}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -364,12 +362,8 @@ export function AdminNavigator() {
 
       <Stack.Screen
         name="Calendar"
-        component={
-          CalendarScreen
-        }
-        options={{
-          title: 'Calendar',
-        }}
+        component={CalendarScreen}
+        options={{ headerShown: false }}
       />
 
       {/* ======================================================
@@ -393,12 +387,8 @@ export function AdminNavigator() {
 
       <Stack.Screen
         name="Reports"
-        component={
-          ReportsScreen
-        }
-        options={{
-          title: 'Reports & Analytics',
-        }}
+        component={ReportsScreen}
+        options={{ headerShown: false }}
       />
 
       {/* ======================================================
@@ -407,12 +397,8 @@ export function AdminNavigator() {
 
       <Stack.Screen
         name="AiCenter"
-        component={
-          AiCenterScreen
-        }
-        options={{
-          title: 'AI Assistant',
-        }}
+        component={AiCenterScreen}
+        options={{ headerShown: false }}
       />
 
       {/* ======================================================
@@ -499,6 +485,17 @@ export function AdminNavigator() {
         }}
       />
 
+      {/* v1.4 */}
+      <Stack.Screen
+        name="InvoiceDetail"
+        component={InvoiceDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="TeamActivity"
+        component={TeamActivityScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

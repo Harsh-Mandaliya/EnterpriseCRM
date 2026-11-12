@@ -80,6 +80,23 @@ export const updateCompanyProfileSchema = z.object({
         .optional(),
       locale: z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/, 'Use a locale like en-IN').optional(),
       currency: z.string().regex(/^[A-Z]{3}$/, 'Use a 3-letter ISO currency code').optional(),
+      billing: z
+        .object({
+          legalName: z.string().trim().max(160).nullable().optional(),
+          address: z.string().trim().max(400).nullable().optional(),
+          gstin: z
+            .string()
+            .trim()
+            .toUpperCase()
+            .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, 'Enter a valid 15-character GSTIN')
+            .nullable()
+            .optional(),
+          phone: z.string().trim().max(30).nullable().optional(),
+          email: z.string().trim().email().max(254).nullable().optional(),
+          bankDetails: z.string().trim().max(400).nullable().optional(),
+        })
+        .strict()
+        .optional(),
     })
     .strict(),
 });

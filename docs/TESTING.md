@@ -116,3 +116,16 @@ Data: `npm run seed:demo` (two companies, all five roles, every module — `docs
 Bugs found and fixed: see CHANGELOG 1.3.1 (8 issues). The test server ran with `AUTH_RATE_LIMIT_MAX` and `API_RATE_LIMIT_MAX` raised, because the script makes several hundred requests per minute; the limiter itself is covered by the automated tests.
 
 Not covered: native Android/iOS build on a device, e-mail delivery, Google sign-in.
+
+## v1.4 additions (2026-11-12)
+
+| Check | Result |
+|---|---|
+| Backend `tsc` / tests | ✅ 0 errors · **117 passed** (new `tests/insights.test.ts`, 15 tests) |
+| App `tsc` / ESLint / Jest | ✅ 0 / 0 · **75 passed** (new `upgrade.test.tsx`, 13 tests) |
+| Expo Doctor | ✅ 20/20 (after SDK 58 patch updates) |
+| Two-company role & isolation script (243 checks) | ✅ 243 passed — tasks and calendar now scoped per role |
+
+**Browser (web build + local API, 375 px):** sign-in in **dark mode** shows the full "EnterpriseCRM" brand (was only "E"); registration steps and company-code preview; invoice list shows customer names (was "Unknown customer"); invoice page maths (150 × ₹950 + 12 % GST = ₹1,59,600) and the generated bill (company + customer GSTIN, amount in words, bank details, balance) rendered and checked; Reports — collected 84.8 % = ₹8,89,190 of ₹10,48,790, ageing, who owes, collectors reconciled by hand; Alerts "Needs attention" with reasons; Calendar month/agenda; Customer page tabs and history; Team activity per person with flags; AI Center briefing and deal probabilities (signals add up as documented). Found and fixed during the walk-through: calendar month wrapping, pipeline/payment donut legends showing raw rupees, action buttons not filling the row, and inconsistent "paid" maths for invoices marked PAID by hand.
+
+Not covered: printing to a physical printer, PDF sharing on a real phone (expo-print / expo-sharing are mocked in Jest; on web the generated document was inspected).

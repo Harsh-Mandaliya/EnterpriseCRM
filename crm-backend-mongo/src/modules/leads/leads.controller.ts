@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import { track } from '@/utils/track';
 import { AuthedRequest } from '@/middlewares/auth.middleware';
 import * as leadsService from '@/modules/leads/leads.service';
 import { scopeFor } from '@/utils/scope';
@@ -41,6 +42,7 @@ export async function create(req: AuthedRequest, res: Response, next: NextFuncti
       assignedToId:
         req.body.assignedToId ?? (seesEverything(req.user!.role) ? undefined : req.user!.userId),
     });
+    await track(req.user!, 'lead.created', 'Lead', { id: lead.id, label: lead.name }, { source: lead.source });
     res.status(201).json(lead);
   } catch (err) {
     next(err);
@@ -58,7 +60,9 @@ export async function update(req: AuthedRequest, res: Response, next: NextFuncti
       );
     }
     req.body = body;
+    const before = await leadsService.getLead(req.user!.companyId, req.params.id, await scopeOf(req));
     const lead = await leadsService.updateLead(req.user!.companyId, req.params.id, req.body, await scopeOf(req));
+    await trackLeadChanges(req, before, lead);
     res.json(lead);
   } catch (err) {
     next(err);
@@ -67,12 +71,14 @@ export async function update(req: AuthedRequest, res: Response, next: NextFuncti
 
 export async function updateStatus(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
+    const before = await leadsService.getLead(req.user!.companyId, req.params.id, await scopeOf(req));
     const lead = await leadsService.updateLead(
       req.user!.companyId,
       req.params.id,
       { status: req.body.status },
       await scopeOf(req),
     );
+    await trackLeadChanges(req, before, lead);
     res.json(lead);
   } catch (err) {
     next(err);
@@ -109,5 +115,17 @@ export async function duplicates(req: AuthedRequest, res: Response, next: NextFu
     res.json({ duplicates: matches });
   } catch (err) {
     next(err);
+  }
+}
+
+type LeadSnapshot = { id: string; name: string; status?: string; assignedTo?: { id: string; name: string } | null };
+
+// Work log entries for status changes and reassignment.
+async function trackLeadChanges(req: AuthedRequest, before: LeadSnapshot, after: LeadSnapshot) {
+  if (before.status !== after.status) {
+    await track(req.user!, 'lead.status_changed', 'Lead', { id: after.id, label: after.name }, { from: before.status, to: after.status });
+  }
+  if ((before.assignedTo?.id ?? null) !== (after.assignedTo?.id ?? null)) {
+    await track(req.user!, 'lead.assigned', 'Lead', { id: after.id, label: after.name }, { to: after.assignedTo?.name ?? null });
   }
 }

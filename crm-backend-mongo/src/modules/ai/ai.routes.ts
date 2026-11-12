@@ -25,6 +25,10 @@ router.use(requireAuth);
    it only returns the requesting user's own tasks/leads.
 ============================================================ */
 
+// v1.4: deal win-probability with reasons, and a daily briefing.
+router.get('/deal-insights', aiController.dealInsights);
+router.get('/briefing', aiController.briefing);
+
 router.get(
   '/next-best-actions',
   aiController.nextBestActions,

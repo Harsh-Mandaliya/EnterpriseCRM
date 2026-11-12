@@ -60,7 +60,9 @@ Team **South Enterprise** (Bengaluru & Chennai) — manager Kabir; members Anany
 | Payments | 3 (NEFT / UPI with UTR references) | 3 |
 | Tasks | 6 + 1 conversion note (overdue, upcoming, done) | 5 + 1 note |
 | Calendar | 4 (review, demo, follow-up, GST deadline) | 4 |
-| Alerts | Assignment notifications for reps and managers | same |
+| Alerts | Assignment notifications + "Needs attention" (overdue invoice, overdue tasks, stalled deal, upcoming meetings) | same |
+| Billing details | Surat address, GSTIN 24AAKCS4821M1Z3, HDFC bank details | Bengaluru address, GSTIN 29AAHCN7311K1Z8, ICICI bank details |
+| Work log | Backfilled "who did what" history | same |
 
 ## What each role should see (use this to spot mismatches)
 
@@ -77,5 +79,5 @@ Team **South Enterprise** (Bengaluru & Chennai) — manager Kabir; members Anany
 | Nova SALES (Vikram) | 3 | 2 | 3 | 1 | 1 |
 | Nova EMPLOYEE | 0 | — | — | — | — |
 
-Products, tasks and calendar events are shared company-wide by design (every role sees all of its own company's).
+Products are shared company-wide. Since v1.4 **tasks and calendar follow the hierarchy** too — e.g. SG: Owner/Admin 7 tasks, Pari (team) 6, Ritik 4, Neha 1, Dhruv 2; calendar: company events from the owner/admin are visible to everyone, other events only to their creator's hierarchy and invited attendees.
 Nothing from one company may ever appear for the other.

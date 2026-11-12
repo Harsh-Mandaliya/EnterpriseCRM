@@ -3,6 +3,7 @@ import {
   NextFunction,
 } from 'express';
 
+import { track } from '@/utils/track';
 import {
   AuthedRequest,
 } from '@/middlewares/auth.middleware';
@@ -112,6 +113,8 @@ export async function create(
         req.user!,
         req.body,
       );
+
+    await track(req.user!, 'customer.created', 'Customer', { id: customer.id, label: (customer as { name?: string }).name });
 
     res
       .status(201)

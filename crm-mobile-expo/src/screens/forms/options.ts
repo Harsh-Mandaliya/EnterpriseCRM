@@ -26,7 +26,7 @@ export const leadSourceOptions: ChoiceOption<LeadSource>[] = [
 
 export function leadStatusOptions(theme: Theme): ChoiceOption<LeadStatus>[] {
   return [
-    { value: 'NEW', label: 'New', icon: 'sparkles-outline', color: theme.colors.status.new },
+    { value: 'NEW', label: 'New', icon: 'add-circle-outline', color: theme.colors.status.new },
     { value: 'CONTACTED', label: 'Contacted', icon: 'chatbubble-outline', color: theme.colors.status.contacted },
     { value: 'QUALIFIED', label: 'Qualified', icon: 'star-outline', color: theme.colors.status.qualified },
     { value: 'UNQUALIFIED', label: 'Unqualified', icon: 'remove-circle-outline', color: theme.colors.textMuted },
