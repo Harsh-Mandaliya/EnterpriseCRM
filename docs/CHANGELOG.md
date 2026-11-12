@@ -4,6 +4,7 @@
 
 ### Fixed
 - **Customer search lost the keyboard after one letter**: every keystroke reloaded the list and replaced the whole screen (search box included) with a loading state. The Customers list is rebuilt: the search bar stays mounted and keeps focus, searching waits until typing pauses (300 ms), older results never overwrite newer ones, a small spinner shows while searching, and "Load more" pages through the list. Search now also matches **GSTIN and address/city**. New card design (location, owner, GST tag, one-tap call), responsive grid.
+- **No focus box on text fields**: tapping a field (sign-in, registration, forms, search bars) no longer draws an orange box or the browser's focus ring — the field keeps its normal light border and you just see your text. Errors still turn the border red.
 - **Task creation trusted the client**: customer, lead, deal and assignee ids are now checked against the company (cross-company ids → 400), and only Owner / Admin / Manager may assign tasks to someone else (others → 403).
 
 ### Added — tasks

@@ -121,8 +121,8 @@ export function CustomerListScreen({ navigation }: Props) {
         }
       >
         {/* search — always mounted so it keeps focus */}
-        <View style={[styles.search, query ? { borderColor: theme.colors.primary } : null]}>
-          <Ionicons name="search" size={19} color={query ? theme.colors.primary : theme.colors.textMuted} />
+        <View style={styles.search}>
+          <Ionicons name="search" size={19} color={theme.colors.textMuted} />
           <TextInput
             value={query}
             onChangeText={setQuery}

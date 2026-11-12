@@ -4,6 +4,10 @@ import { Provider } from 'react-redux';
 import { store } from '@/redux/store';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { installWebFocusReset } from '@/utils/webFocusReset';
+
+// No coloured focus box around text fields (web).
+installWebFocusReset();
 
 export default function App() {
   return (

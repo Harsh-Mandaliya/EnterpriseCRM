@@ -58,7 +58,7 @@ export function FieldShell({
 }
 
 /* ============================================================
-   INPUT — icon, animated focus ring, prefix/suffix
+   INPUT — icon, prefix/suffix (no focus ring)
 ============================================================ */
 
 export function InputField({
@@ -82,17 +82,9 @@ export function InputField({
 }) {
   const theme = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const focus = useRef(new Animated.Value(0)).current;
-
-  const animateFocus = (to: number) =>
-    Animated.timing(focus, { toValue: to, duration: 160, useNativeDriver: false }).start();
-
-  const borderColor = error
-    ? theme.colors.danger
-    : (focus.interpolate({
-        inputRange: [0, 1],
-        outputRange: [theme.colors.border, theme.colors.primary],
-      }) as unknown as string);
+  // No focus highlight (v1.4.2): the field looks the same while typing;
+  // only an error turns the border red.
+  const borderColor = error ? theme.colors.danger : theme.colors.border;
 
   return (
     <FieldShell label={label} required={required} hint={hint} error={error}>
@@ -107,14 +99,8 @@ export function InputField({
           placeholderTextColor={theme.colors.textFaint}
           accessibilityLabel={label}
           accessibilityHint={error ?? hint}
-          onFocus={event => {
-            animateFocus(1);
-            props.onFocus?.(event);
-          }}
-          onBlur={event => {
-            animateFocus(0);
-            props.onBlur?.(event);
-          }}
+          onFocus={props.onFocus}
+          onBlur={props.onBlur}
         />
         {suffix}
       </Animated.View>
