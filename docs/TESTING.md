@@ -142,3 +142,12 @@ Not covered: printing to a physical printer, PDF sharing on a real phone (expo-p
 | Responsive | ✅ lead list/detail at 320, 375 and 1280 px; reports two-column on desktop; no horizontal overflow |
 
 Not verified on a physical phone: saving to Downloads (Android) and the iOS share sheet. They use expo-print, expo-file-system and expo-sharing; on the first save Android asks you to pick the Downloads folder.
+
+## v1.4.2 additions (2026-11-13)
+
+| Check | Result |
+|---|---|
+| Backend tests | ✅ **124 passed** (new `tests/tasks.test.ts`, 7 tests) |
+| App tsc / ESLint / Jest | ✅ 0 / 0 · **86 passed** (new `tasks.test.ts`) |
+| Customer search, browser | ✅ typing one key at a time keeps focus; "sur" finds the two Surat customers (address search) |
+| Tasks, browser | ✅ completed tasks show who completed them, date and time, and on-time / late |

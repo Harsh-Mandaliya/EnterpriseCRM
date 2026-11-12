@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -185,7 +185,7 @@ export function LeadListScreen({ navigation }: Props) {
             onChangeText={setQuery}
             placeholder="Search name, e-mail or phone"
             placeholderTextColor={theme.colors.textFaint}
-            style={styles.searchInput}
+            style={[styles.searchInput, WEB_NO_OUTLINE]}
             autoCapitalize="none"
             accessibilityLabel="Search leads"
           />
@@ -287,6 +287,9 @@ function LeadCard({ lead, onPress }: { lead: Lead; onPress: () => void }) {
     </PressableScale>
   );
 }
+
+/** Hide the browser focus ring inside the box; the border shows focus. */
+const WEB_NO_OUTLINE = (Platform.OS === 'web' ? { outlineWidth: 0 } : null) as object | null;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({

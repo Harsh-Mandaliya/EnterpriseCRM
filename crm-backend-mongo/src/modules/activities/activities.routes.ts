@@ -14,12 +14,15 @@ import {
 import { validate } from '@/middlewares/validate.middleware';
 
 import {
+  assignActivitySchema,
   createActivitySchema,
   updateActivitySchema,
 } from '@/modules/activities/activities.validation';
+import { requireRole } from '@/middlewares/rbac.middleware';
 
 import {
   CAN_MANAGE_ACTIVITIES,
+  COMPANY_WIDE_VISIBILITY,
 } from '@/utils/permissions';
 
 const router = Router();
@@ -98,6 +101,9 @@ router.post(
 
    The frontend cannot provide these values.
    ============================================================ */
+
+// v1.4.2: give a task to a person or make it a general team task.
+router.patch('/:id/assign', requireRole(...COMPANY_WIDE_VISIBILITY), validate(assignActivitySchema), activitiesController.assign);
 
 router.patch(
   '/:id/complete',

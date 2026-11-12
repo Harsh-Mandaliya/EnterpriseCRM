@@ -175,12 +175,8 @@ export function ManagerNavigator() {
 
       <Stack.Screen
         name="CustomerList"
-        component={
-          CustomerListScreen
-        }
-        options={{
-          title: 'Customers',
-        }}
+        component={CustomerListScreen}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -256,12 +252,8 @@ export function ManagerNavigator() {
 
       <Stack.Screen
         name="Activities"
-        component={
-          ActivitiesScreen
-        }
-        options={{
-          title: 'Tasks',
-        }}
+        component={ActivitiesScreen}
+        options={{ headerShown: false }}
       />
 
       {/* ====================================================

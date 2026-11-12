@@ -165,10 +165,13 @@ export async function listCustomers(
         'i',
       );
 
+    // name, e-mail, phone, GSTIN or address (e.g. a city)
     filter.$or = [
       { name: regex },
       { email: regex },
       { phone: regex },
+      { gstin: regex },
+      { address: regex },
     ];
   }
 

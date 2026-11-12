@@ -225,12 +225,8 @@ export function AdminNavigator() {
 
       <Stack.Screen
         name="CustomerList"
-        component={
-          CustomerListScreen
-        }
-        options={{
-          title: 'Customers',
-        }}
+        component={CustomerListScreen}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -295,12 +291,8 @@ export function AdminNavigator() {
 
       <Stack.Screen
         name="Activities"
-        component={
-          ActivitiesScreen
-        }
-        options={{
-          title: 'Activities',
-        }}
+        component={ActivitiesScreen}
+        options={{ headerShown: false }}
       />
 
       {/* ======================================================

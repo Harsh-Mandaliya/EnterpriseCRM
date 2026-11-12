@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.2 — 2026-11-13 — Customer search, task assignment and completion record
+
+### Fixed
+- **Customer search lost the keyboard after one letter**: every keystroke reloaded the list and replaced the whole screen (search box included) with a loading state. The Customers list is rebuilt: the search bar stays mounted and keeps focus, searching waits until typing pauses (300 ms), older results never overwrite newer ones, a small spinner shows while searching, and "Load more" pages through the list. Search now also matches **GSTIN and address/city**. New card design (location, owner, GST tag, one-tap call), responsive grid.
+- **Task creation trusted the client**: customer, lead, deal and assignee ids are now checked against the company (cross-company ids → 400), and only Owner / Admin / Manager may assign tasks to someone else (others → 403).
+
+### Added — tasks
+- Assign a task to **a specific person** or as a **General (team)** task (`assignedToId: null`) that everyone in the company sees and anyone can pick up and complete.
+- **Reassign** from the task list (Owner / Admin / Manager): `PATCH /activities/:id/assign { assignedToId | null }`; the new assignee is notified; completed tasks can't be reassigned.
+- **Completion record**: every completed task shows *who* completed it and *when* (date and time) and whether it was **on time or late**; completing asks for confirmation naming you and the time; the task's creator gets a "Task completed" alert with the time. Task responses now include `assignedTo` (name) as well as `completedBy` / `completedAt`.
+- Tasks screen rebuilt: open / due-today / overdue / done KPIs; Open · Completed · All; filters Everything · Assigned to me · General (team) · Created by me; search tasks or people; grouped by Overdue / Due today / Upcoming / No date / Completed; "For: …" and "by …" on every card; Assign and Mark done buttons. Task form offers Me / a person / General (team).
+
+### Tests
+- Backend 117 → **124** (`tests/tasks.test.ts`: assign to a person with notification, general tasks visible company-wide only, reps can't assign others, cross-company assignee/customer rejected, reassign rules, completion by + time + creator alert, no double completion).
+- App 81 → **86** (`tasks.test.ts`: due-date grouping, on-time/late, assignee labels incl. General, filters; address shortening).
+- Browser: typed "s", "u", "r" one key at a time in Customers — focus kept, "sur" found both Surat customers; Tasks "Completed" shows "Completed by … · date, time · on time / N days late".
+
 ## 1.4.1 — 2026-11-13 — Real PDF downloads, lead screens, responsive layout
 
 ### Fixed

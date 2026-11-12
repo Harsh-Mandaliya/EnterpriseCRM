@@ -1,4 +1,5 @@
 import { Activity } from '@/models';
+import { assertSameCompanyRefs } from '@/utils/scope';
 
 import { ApiError } from '@/utils/apiError';
 
@@ -15,6 +16,11 @@ const POPULATE_CREATED_BY = {
 
 const POPULATE_COMPLETED_BY = {
   path: 'completedById',
+  select: 'name role',
+};
+
+const POPULATE_ASSIGNED = {
+  path: 'assignedToId',
   select: 'name role',
 };
 
@@ -41,6 +47,17 @@ function toActivityJson(doc: any) {
   /* ----------------------------------------------------------
      COMPLETED BY
      ---------------------------------------------------------- */
+
+  // Assignee: a person, or null for a general team task.
+  const assignedTo =
+    doc.assignedToId &&
+    doc.assignedToId.name
+      ? {
+          id: doc.assignedToId._id.toString(),
+          name: doc.assignedToId.name,
+          role: doc.assignedToId.role,
+        }
+      : null;
 
   const completedBy =
     doc.completedById &&
@@ -72,6 +89,13 @@ function toActivityJson(doc: any) {
       null,
 
     completedBy,
+
+    assignedToId:
+      assignedTo?.id ??
+      (json.assignedToId && typeof json.assignedToId === 'object' ? String(json.assignedToId.id ?? json.assignedToId._id) : json.assignedToId) ??
+      null,
+
+    assignedTo,
 
     completedAt:
       json.completedAt ??
@@ -113,6 +137,7 @@ export async function listActivities(
     await Activity.find(filter)
       .populate(POPULATE_CREATED_BY)
       .populate(POPULATE_COMPLETED_BY)
+      .populate(POPULATE_ASSIGNED)
       .sort({
         createdAt: -1,
       });
@@ -147,6 +172,14 @@ export async function createActivity(
     ...safeInput
   } = input;
 
+  // Every referenced record and person must belong to this company.
+  await assertSameCompanyRefs(companyId, {
+    customerId: safeInput.customerId,
+    leadId: safeInput.leadId,
+    opportunityId: safeInput.opportunityId,
+    userIds: [safeInput.assignedToId],
+  });
+
   const activity =
     await Activity.create({
       ...safeInput,
@@ -155,9 +188,10 @@ export async function createActivity(
 
       createdById,
 
-      // A task created without an assignee is the creator's own task
-      // (reps' forms don't send one); dashboards count by assignee.
-      assignedToId: safeInput.assignedToId ?? createdById,
+      // No assignee sent → the creator's own task (reps' forms don't
+      // send one; dashboards count by assignee). Explicit null → a
+      // general team task anyone can pick up.
+      assignedToId: safeInput.assignedToId === null ? null : (safeInput.assignedToId ?? createdById),
 
       status: 'PENDING',
 
@@ -166,9 +200,7 @@ export async function createActivity(
       completedAt: null,
     });
 
-  await activity.populate(
-    POPULATE_CREATED_BY,
-  );
+  await activity.populate([POPULATE_CREATED_BY, POPULATE_ASSIGNED]);
 
   const assignedToId =
     safeInput.assignedToId as
@@ -277,6 +309,17 @@ export async function completeActivity(
 
   await activity.save();
 
+  // Tell the creator who finished it and when (unless they did it).
+  if (activity.createdById && String(activity.createdById) !== completedById) {
+    const when = activity.completedAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' });
+    await notify(companyId, String(activity.createdById), {
+      type: 'TASK',
+      title: 'Task completed',
+      message: `"${activity.summary}" was completed on ${when}.`,
+      relatedId: activity._id.toString(),
+    });
+  }
+
   /* ----------------------------------------------------------
      POPULATE RESPONSE
      ---------------------------------------------------------- */
@@ -285,9 +328,7 @@ export async function completeActivity(
     POPULATE_CREATED_BY,
   );
 
-  await activity.populate(
-    POPULATE_COMPLETED_BY,
-  );
+  await activity.populate([POPULATE_COMPLETED_BY, POPULATE_ASSIGNED]);
 
   return toActivityJson(
     activity,
@@ -363,9 +404,7 @@ export async function updateActivity(
     POPULATE_CREATED_BY,
   );
 
-  await existing.populate(
-    POPULATE_COMPLETED_BY,
-  );
+  await existing.populate([POPULATE_COMPLETED_BY, POPULATE_ASSIGNED]);
 
   return toActivityJson(
     existing,
@@ -391,4 +430,35 @@ export async function deleteActivity(
       'Activity not found',
     );
   }
+}
+/* ============================================================
+   ASSIGN ACTIVITY (v1.4.2)
+   OWNER / ADMIN / MANAGER give a task to a person, or make it a
+   general team task (null). Scoped like every other task query.
+   ============================================================ */
+
+export async function assignActivity(
+  companyId: string,
+  id: string,
+  assignedToId: string | null,
+  actorId: string,
+  scope: Record<string, unknown> = {},
+) {
+  await assertSameCompanyRefs(companyId, { userIds: [assignedToId] });
+  const activity = await Activity.findOne({ ...scope, _id: id, companyId });
+  if (!activity) throw ApiError.notFound('Activity not found');
+  if (activity.status === 'COMPLETED') throw ApiError.badRequest('This task is already completed');
+  const previous = activity.assignedToId ? String(activity.assignedToId) : null;
+  activity.assignedToId = (assignedToId as any) ?? null;
+  await activity.save();
+  if (assignedToId && assignedToId !== previous && assignedToId !== actorId) {
+    await notify(companyId, assignedToId, {
+      type: 'TASK',
+      title: 'Task assigned to you',
+      message: activity.summary,
+      relatedId: activity._id.toString(),
+    });
+  }
+  await activity.populate([POPULATE_CREATED_BY, POPULATE_COMPLETED_BY, POPULATE_ASSIGNED]);
+  return toActivityJson(activity);
 }

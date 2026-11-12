@@ -8,6 +8,8 @@ import { AuthedRequest } from '@/middlewares/auth.middleware';
 import * as activitiesService from '@/modules/activities/activities.service';
 import { activityScope } from '@/utils/scope';
 import { track } from '@/utils/track';
+import { ApiError } from '@/utils/apiError';
+import { hasCompanyWideVisibility } from '@/utils/permissions';
 
 /* ============================================================
    LIST ACTIVITIES
@@ -52,6 +54,12 @@ export async function create(
   next: NextFunction,
 ) {
   try {
+    // Only Owner / Admin / Manager give tasks to someone else or make
+    // general team tasks; reps and employees create their own.
+    const target = req.body.assignedToId;
+    if (target !== undefined && target !== req.user!.userId && !hasCompanyWideVisibility(req.user!.role)) {
+      throw ApiError.forbidden('Only owners, admins and managers can assign tasks to others');
+    }
     const activity =
       await activitiesService.createActivity(
         req.user!.companyId,
@@ -157,6 +165,25 @@ export async function remove(
     res
       .status(204)
       .send();
+  } catch (err) {
+    next(err);
+  }
+}
+/* ============================================================
+   ASSIGN ACTIVITY (v1.4.2) — OWNER / ADMIN / MANAGER
+   ============================================================ */
+
+export async function assign(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    const activity = await activitiesService.assignActivity(
+      req.user!.companyId,
+      req.params.id,
+      req.body.assignedToId,
+      req.user!.userId,
+      await activityScope(req.user!),
+    );
+    await track(req.user!, 'task.assigned', 'Activity', { id: activity.id, label: activity.summary }, { to: activity.assignedTo?.name ?? 'General (team)' });
+    res.json(activity);
   } catch (err) {
     next(err);
   }

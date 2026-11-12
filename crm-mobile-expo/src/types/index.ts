@@ -329,6 +329,13 @@ export interface Activity {
 
   assignedToId: string | null;
 
+  /** null = general team task (v1.4.2). */
+  assignedTo?: {
+    id: string;
+    name: string;
+    role?: Role;
+  } | null;
+
   /* ----------------------------------------------------------
      CREATION INFORMATION
      ---------------------------------------------------------- */

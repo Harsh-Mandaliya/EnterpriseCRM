@@ -80,9 +80,8 @@ export function EmployeeNavigator() {
 
       <Stack.Screen
         name="CustomerList"
-        component={
-          CustomerListScreen
-        }
+        component={CustomerListScreen}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -101,9 +100,8 @@ export function EmployeeNavigator() {
 
       <Stack.Screen
         name="Activities"
-        component={
-          ActivitiesScreen
-        }
+        component={ActivitiesScreen}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen

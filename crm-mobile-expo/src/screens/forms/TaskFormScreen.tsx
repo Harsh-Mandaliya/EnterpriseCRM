@@ -36,6 +36,9 @@ const PLACEHOLDER: Record<ActivityType, string> = {
  * Create a task, call, e-mail, meeting or note. Every role can log
  * activities; only managers and above can assign them to others.
  */
+/** Picker value for a task with no single owner. */
+export const GENERAL = "__general__";
+
 export function TaskFormScreen({ navigation, route }: Props) {
   const canAssign = useCan('task.assign');
   const users = usePickerData('users', canAssign);
@@ -68,7 +71,8 @@ export function TaskFormScreen({ navigation, route }: Props) {
       leadId: v.leadId ?? undefined,
       customerId: v.customerId ?? undefined,
       opportunityId: v.opportunityId ?? undefined,
-      ...(canAssign && v.assignedToId ? { assignedToId: v.assignedToId } : {}),
+      // Me (default) / a person / a general team task anyone can pick up.
+      ...(canAssign && v.assignedToId ? { assignedToId: v.assignedToId === GENERAL ? null : v.assignedToId } : {}),
     });
     navigation.goBack();
   }, "Couldn't save the activity.");
@@ -116,7 +120,7 @@ export function TaskFormScreen({ navigation, route }: Props) {
             <PickerField
               label="Assign to"
               placeholder="Me"
-              items={users.items}
+              items={[{ id: GENERAL, title: "General (team)", subtitle: "Anyone in the company can pick it up" }, ...users.items]}
               loading={users.loading}
               value={values.assignedToId}
               onChange={v => setField('assignedToId', v)}

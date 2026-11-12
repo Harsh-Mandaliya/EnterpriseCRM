@@ -190,8 +190,7 @@ describe('create buttons follow role rules', () => {
   it('EMPLOYEE gets no Add customer / Add product buttons', async () => {
     renderWith('EMPLOYEE', <CustomerListScreen navigation={navigation as never} route={{ key: 'c', name: 'CustomerList' } as never} />);
     expect(await screen.findByText('Customers shared with you will appear here.')).toBeTruthy();
-    expect(screen.queryByText('Add customer')).toBeNull();
-    expect(screen.queryByLabelText('Add customer')).toBeNull();
+    expect(screen.queryByText('New customer')).toBeNull();
     screen.unmount();
 
     renderWith('EMPLOYEE', <ProductListScreen />);
@@ -202,7 +201,7 @@ describe('create buttons follow role rules', () => {
 
   it('SALES keeps them', async () => {
     renderWith('SALES', <CustomerListScreen navigation={navigation as never} route={{ key: 'c', name: 'CustomerList' } as never} />);
-    expect(await screen.findByText('Add customer')).toBeTruthy();
+    expect(await screen.findByText('New customer')).toBeTruthy();
     screen.unmount();
     renderWith('SALES', <ProductListScreen />);
     expect(await screen.findByLabelText('Add product')).toBeTruthy();

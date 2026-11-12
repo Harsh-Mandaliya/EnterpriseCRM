@@ -36,7 +36,8 @@ export async function createActivity(input: {
   customerId?: string;
   leadId?: string;
   opportunityId?: string;
-  assignedToId?: string;
+  /** A person, or null for a general team task (owner/admin/manager). */
+  assignedToId?: string | null;
 }): Promise<Activity> {
   const { data } = await apiClient.post<Activity>(
     '/activities',
@@ -116,4 +117,10 @@ export async function deleteActivity(
   await apiClient.delete(
     `/activities/${id}`,
   );
+}
+/* v1.4.2 — give a task to a person or make it a general team task
+   (OWNER / ADMIN / MANAGER; others get 403). */
+export async function assignActivity(id: string, assignedToId: string | null): Promise<Activity> {
+  const { data } = await apiClient.patch<Activity>(`/activities/${id}/assign`, { assignedToId });
+  return data;
 }

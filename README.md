@@ -37,7 +37,7 @@ Every company gets its own look (logo, name, five theme presets, brand colours, 
 - **Leads** — capture, assign, qualify, convert to a customer + deal in one step, duplicate warnings on the same e-mail or phone; searchable list with status counts and a lead page with a status tracker, quick call / WhatsApp / e-mail, tasks and history.
 - **Deals (pipeline)** — kanban board by stage, list view, move a deal to any stage, win probability and weighted forecast.
 - **Customers** — owners, sharing with colleagues, GSTIN, billing address; a customer page with account health, deals, invoices, payments, tasks, meetings, history and a downloadable **statement (PDF)**; call / WhatsApp / e-mail in one tap.
-- **Tasks & calls** — tasks, calls, e-mails, meetings and notes linked to leads, customers or deals; due dates and overdue tracking. Each person sees their own tasks, managers their team's, owner/admin everyone's.
+- **Tasks & calls** — tasks, calls, e-mails, meetings and notes linked to leads, customers or deals; due dates and overdue tracking; assign to a person or as a **General (team)** task anyone can pick up; every completed task shows **who completed it and when** (on time or late). Each person sees their own tasks, managers their team's, owner/admin everyone's.
 - **Calendar** — month, week and agenda views, type filters, "mine only", event details with linked customer/lead/deal and attendees, PDF agenda. Company events from the owner/admin are shared; other events follow the hierarchy and invitations.
 
 **Billing**

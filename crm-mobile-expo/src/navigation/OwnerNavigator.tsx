@@ -212,10 +212,7 @@ export function OwnerNavigator() {
       <Stack.Screen
         name="CustomerList"
         component={CustomerListScreen}
-        options={{
-          title: 'Customers',
-          headerShown: true,
-        }}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -297,10 +294,7 @@ export function OwnerNavigator() {
       <Stack.Screen
         name="Activities"
         component={ActivitiesScreen}
-        options={{
-          title: 'Tasks',
-          headerShown: true,
-        }}
+        options={{ headerShown: false }}
       />
 
 

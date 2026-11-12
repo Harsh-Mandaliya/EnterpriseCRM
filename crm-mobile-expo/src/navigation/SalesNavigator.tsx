@@ -114,9 +114,7 @@ export function SalesNavigator() {
       <Stack.Screen
         name="CustomerList"
         component={CustomerListScreen}
-        options={{
-          title: 'My Customers',
-        }}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen
@@ -176,9 +174,7 @@ export function SalesNavigator() {
       <Stack.Screen
         name="Activities"
         component={ActivitiesScreen}
-        options={{
-          title: 'My Tasks',
-        }}
+        options={{ headerShown: false }}
       />
 
       {/* =====================================================

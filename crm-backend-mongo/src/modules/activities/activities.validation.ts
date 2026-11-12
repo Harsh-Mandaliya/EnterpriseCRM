@@ -41,8 +41,9 @@ export const createActivitySchema = z.object({
     opportunityId:
       objectId.optional(),
 
+    // null = a general team task anyone in the company can pick up
     assignedToId:
-      objectId.optional(),
+      objectId.nullable().optional(),
 
     dueAt:
       z
@@ -120,4 +121,12 @@ export const updateActivitySchema = z.object({
         .nullable()
         .optional(),
   }),
+});
+/** PATCH /activities/:id/assign — a person, or null for a general team task. */
+export const assignActivitySchema = z.object({
+  body: z
+    .object({
+      assignedToId: objectId.nullable(),
+    })
+    .strict(),
 });

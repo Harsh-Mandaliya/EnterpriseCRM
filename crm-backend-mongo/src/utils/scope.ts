@@ -203,7 +203,8 @@ export async function activityScope(
   const ids = await visibleUserIds(user);
   if (ids === null) return {};
   return {
-    $or: [{ assignedToId: { $in: ids } }, { createdById: { $in: ids } }],
+    // General team tasks (no assignee) are open to everyone.
+    $or: [{ assignedToId: { $in: ids } }, { createdById: { $in: ids } }, { assignedToId: null }],
   };
 }
 
