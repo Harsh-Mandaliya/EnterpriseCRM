@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.expo/
+*.log
+.env
+.DS_Store
+
+# Environment templates are safe to commit
+.env.*
+!.env.example
+
+# Extracted release copies and archives
+EnterpriseCRM-Pro-Final/
+*.zip
+
