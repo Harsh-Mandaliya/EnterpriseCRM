@@ -1,17 +1,16 @@
-import { Platform } from 'react-native';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+export { exportPdf, safePdfName, type PdfResult } from '@/utils/pdfExport';
 
 import type { CompanyBilling, Invoice, Payment } from '@/types';
 
 /* ============================================================
    PDF DOCUMENTS
    ------------------------------------------------------------
-   Bills, receipts, statements and reports are rendered from
-   HTML: on a phone expo-print writes a PDF file and the share
-   sheet lets the user save it (Files / Downloads / Drive) or send
-   it (WhatsApp, e-mail). On web the browser print dialog opens,
-   where "Save as PDF" is available.
+   Bills, receipts, statements and reports are built as HTML here
+   and turned into a real PDF file by utils/pdfExport (phone:
+   expo-print, saved to Downloads on Android / share sheet on iOS)
+   or utils/pdfExport.web (browser: html2pdf.js, direct download).
+   All CSS is scoped under .crm-doc so the web export can render
+   the document inside the app page without restyling the app.
 ============================================================ */
 
 export interface PdfCompany {
@@ -76,41 +75,42 @@ function shell(title: string, accent: string, body: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   @page { size: A4; margin: 14mm; }
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; font-size: 12px; margin: 0; }
-  .doc { max-width: 780px; margin: 0 auto; }
-  .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid ${accent}; padding-bottom: 14px; }
-  .brand { font-size: 22px; font-weight: 800; color: ${accent}; }
-  .muted { color: #6b7280; }
-  .small { font-size: 11px; }
-  .doc-title { text-align: right; }
-  .doc-title h1 { margin: 0; font-size: 24px; letter-spacing: 2px; color: #111827; }
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-weight: 700; font-size: 11px; margin-top: 6px; }
-  .pill.paid { background: #dcfce7; color: #166534; } .pill.due { background: #fef3c7; color: #92400e; }
-  .pill.overdue { background: #fee2e2; color: #991b1b; } .pill.neutral { background: #e5e7eb; color: #374151; }
-  .grid2 { display: flex; gap: 16px; margin: 18px 0; }
-  .box { flex: 1; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
-  .box h3 { margin: 0 0 6px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #6b7280; }
-  .box .name { font-size: 14px; font-weight: 700; }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th { background: ${accent}; color: #fff; text-align: left; padding: 8px; font-size: 11px; }
-  td { padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-  tr:nth-child(even) td { background: #f9fafb; }
-  .r { text-align: right; } .c { text-align: center; }
-  .totals { width: 300px; margin-left: auto; margin-top: 12px; }
-  .totals td { border: none; padding: 5px 8px; background: none !important; }
-  .totals .grand td { font-size: 15px; font-weight: 800; border-top: 2px solid #111827; }
-  .words { margin-top: 10px; padding: 10px; background: #f3f4f6; border-radius: 6px; }
-  .section { margin-top: 22px; }
-  .section h2 { font-size: 13px; margin: 0 0 6px; color: ${accent}; text-transform: uppercase; letter-spacing: 1px; }
-  .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
-  .kpi { flex: 1; min-width: 140px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
-  .kpi .v { font-size: 17px; font-weight: 800; } .kpi .l { color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
-  .foot { margin-top: 28px; display: flex; justify-content: space-between; align-items: flex-end; }
-  .sign { text-align: center; width: 200px; border-top: 1px solid #9ca3af; padding-top: 6px; }
-  .note { margin-top: 26px; text-align: center; color: #9ca3af; font-size: 10px; }
-  .bar { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; } .bar i { display: block; height: 8px; background: ${accent}; }
-</style></head><body><div class="doc">${body}</div></body></html>`;
+  .crm-doc, .crm-doc * { box-sizing: border-box; }
+  .crm-doc { font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #111827; font-size: 12px; margin: 0; }
+  .crm-doc .doc { max-width: 780px; margin: 0 auto; }
+  .crm-doc .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid ${accent}; padding-bottom: 14px; }
+  .crm-doc .brand { font-size: 22px; font-weight: 800; color: ${accent}; }
+  .crm-doc .muted { color: #6b7280; }
+  .crm-doc .small { font-size: 11px; }
+  .crm-doc .doc-title { text-align: right; }
+  .crm-doc .doc-title h1 { margin: 0; font-size: 24px; letter-spacing: 2px; color: #111827; }
+  .crm-doc .pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-weight: 700; font-size: 11px; margin-top: 6px; }
+  .crm-doc .pill.paid { background: #dcfce7; color: #166534; } .crm-doc .pill.due { background: #fef3c7; color: #92400e; }
+  .crm-doc .pill.overdue { background: #fee2e2; color: #991b1b; } .crm-doc .pill.neutral { background: #e5e7eb; color: #374151; }
+  .crm-doc .grid2 { display: flex; gap: 16px; margin: 18px 0; }
+  .crm-doc .box { flex: 1; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+  .crm-doc .box h3 { margin: 0 0 6px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #6b7280; }
+  .crm-doc .box .name { font-size: 14px; font-weight: 700; }
+  .crm-doc table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .crm-doc th { background: ${accent}; color: #fff; text-align: left; padding: 8px; font-size: 11px; }
+  .crm-doc td { padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  .crm-doc tr:nth-child(even) td { background: #f9fafb; }
+  .crm-doc .r { text-align: right; } .crm-doc .c { text-align: center; }
+  .crm-doc .totals { width: 300px; margin-left: auto; margin-top: 12px; }
+  .crm-doc .totals td { border: none; padding: 5px 8px; background: none !important; }
+  .crm-doc .totals .grand td { font-size: 15px; font-weight: 800; border-top: 2px solid #111827; }
+  .crm-doc .words { margin-top: 10px; padding: 10px; background: #f3f4f6; border-radius: 6px; }
+  .crm-doc .section { margin-top: 22px; }
+  .crm-doc .section h2 { font-size: 13px; margin: 0 0 6px; color: ${accent}; text-transform: uppercase; letter-spacing: 1px; }
+  .crm-doc .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+  .crm-doc .kpi { flex: 1; min-width: 140px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
+  .crm-doc .kpi .v { font-size: 17px; font-weight: 800; } .crm-doc .kpi .l { color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  .crm-doc .foot { margin-top: 28px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .crm-doc .sign { text-align: center; width: 200px; border-top: 1px solid #9ca3af; padding-top: 6px; }
+  .crm-doc .note { margin-top: 26px; text-align: center; color: #9ca3af; font-size: 10px; }
+  .crm-doc .bar { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; } .crm-doc .bar i { display: block; height: 8px; background: ${accent}; }
+  .crm-doc { background: #ffffff; padding: 0; }
+</style></head><body style="margin:0"><div class="crm-doc"><div class="doc">${body}</div></div></body></html>`;
 }
 
 function companyBlock(company: PdfCompany): string {
@@ -267,34 +267,6 @@ export function reportHtml(input: {
     <div class="muted small">Generated ${escapeHtml(new Date().toLocaleString('en-IN'))}</div></div></div>
     ${kpis}${sections}<div class="note">Confidential · ${escapeHtml(input.company.name)}</div>`;
   return shell(input.title, accent, body);
-}
-
-/* ---------------- output ---------------- */
-
-/**
- * Turns the HTML into a PDF and opens the share sheet (phone) or the
- * print / save-as-PDF dialog (web). Returns where it went.
- */
-export async function exportPdf(html: string, fileName: string): Promise<'shared' | 'printed' | 'saved'> {
-  if (Platform.OS === 'web') {
-    const win = typeof window !== 'undefined' ? window.open('', '_blank') : null;
-    if (!win) {
-      await Print.printAsync({ html });
-      return 'printed';
-    }
-    win.document.open();
-    win.document.write(html.replace('<title>', `<title>${escapeHtml(fileName)} – `));
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 350);
-    return 'printed';
-  }
-  const { uri } = await Print.printToFileAsync({ html });
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: fileName, UTI: 'com.adobe.pdf' });
-    return 'shared';
-  }
-  return 'saved';
 }
 
 /** Builds a PdfCompany from the branding already in Redux. */

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +59,8 @@ interface Data {
 export function AiCenterScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const layout = useResponsive();
+  const pad = { paddingHorizontal: layout.gutter, maxWidth: layout.maxWidth };
   const role = useAppSelector(state => state.auth.user?.role);
   const full = can(role, 'reports.view');
   const company = usePdfCompany();
@@ -172,7 +175,7 @@ export function AiCenterScreen({ navigation }: Props) {
     <View style={styles.screen}>
       {header}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, pad]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

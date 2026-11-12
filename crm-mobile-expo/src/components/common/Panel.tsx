@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { AnimatedNumber, formatCompactCurrency } from '@/components/motion/AnimatedNumber';
 import { PressableScale } from '@/components/motion/PressableScale';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useTheme, useThemedStyles } from '@/theme/ThemeProvider';
 import type { Theme } from '@/theme/types';
 
@@ -70,8 +71,9 @@ export function Kpi({
   hint?: string;
 }) {
   const styles = useThemedStyles(makeStyles);
+  const { kpiColumns } = useResponsive();
   return (
-    <View style={styles.kpi} accessible accessibilityLabel={`${label}: ${money ? formatCompactCurrency(value) : value}${suffix ?? ''}`}>
+    <View style={[styles.kpi, { flexBasis: kpiColumns === 4 ? '22%' : '45%' }]} accessible accessibilityLabel={`${label}: ${money ? formatCompactCurrency(value) : value}${suffix ?? ''}`}>
       <View style={[styles.kpiIcon, { backgroundColor: `${color}1F` }]}>
         <Ionicons name={icon} size={16} color={color} />
       </View>

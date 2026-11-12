@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +43,8 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const { invoiceId } = route.params;
   const theme = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const layout = useResponsive();
+  const pad = { paddingHorizontal: layout.gutter, maxWidth: layout.maxWidth };
   const canRecord = useCan('payment.record');
   const company = usePdfCompany();
 
@@ -135,7 +138,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
     <View style={styles.screen}>
       {header}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, pad]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

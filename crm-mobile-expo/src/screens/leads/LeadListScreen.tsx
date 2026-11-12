@@ -1,1741 +1,313 @@
-import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
-import { Fab } from '@/components/common/Fab';
-import { useCan } from '@/utils/permissions';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-
-import {
-  ActivityIndicator,
-  FlatList,
-  Platform,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from 'react-native';
-
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 
-import {
-  useAppDispatch,
-  useAppSelector,
-} from '@/hooks/useRedux';
+import { getApiErrorMessage } from '@/api/client';
+import { listLeads } from '@/api/leads.api';
+import { Fab } from '@/components/common/Fab';
+import { Kpi, KpiRow } from '@/components/common/Panel';
+import { ResponsiveGrid } from '@/components/common/ResponsiveGrid';
+import { ScreenState } from '@/components/common/ScreenState';
+import { StatusBadge, type BadgeTone } from '@/components/common/StatusBadge';
+import { HeroHeader } from '@/components/graphics/HeroHeader';
+import { FadeInView } from '@/components/motion/FadeInView';
+import { PressableScale } from '@/components/motion/PressableScale';
+import { SkeletonCard } from '@/components/motion/Skeleton';
+import { useAppSelector } from '@/hooks/useRedux';
+import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
+import { useResponsive } from '@/hooks/useResponsive';
+import type { AppStackParamList } from '@/navigation/types';
+import { leadSourceOptions } from '@/screens/forms/options';
+import { useTheme, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Theme } from '@/theme/types';
+import type { Lead, LeadStatus } from '@/types';
+import { useCan } from '@/utils/permissions';
 
-import {
-  fetchLeads,
-} from '@/redux/slices/leadsSlice';
+type Props = NativeStackScreenProps<AppStackParamList, 'LeadList'>;
+type Filter = 'ALL' | LeadStatus;
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-import {
-  colors,
-} from '@/theme/colors';
+export const LEAD_STATUSES: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'UNQUALIFIED', 'LOST'];
 
-import {
-  typography,
-  spacing,
-  radius,
-} from '@/theme/typography';
+export const leadStatusLabel = (s: LeadStatus) => s.charAt(0) + s.slice(1).toLowerCase();
 
-import type {
-  Lead,
-  LeadStatus,
-} from '@/types';
-
-import type {
-  MainStackParamList,
-} from '@/navigation/OwnerNavigator';
-
-
-import { createThemedStyles } from '@/theme/themeStore';
-type Props = NativeStackScreenProps<
-  MainStackParamList,
-  'LeadList'
->;
-
-
-/* ============================================================
-   FILTERS
-============================================================ */
-
-const FILTERS: {
-  label: string;
-  value: LeadStatus | undefined;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  {
-    label: 'All',
-    value: undefined,
-    icon: 'grid-outline',
-  },
-  {
-    label: 'New',
-    value: 'NEW',
-    icon: 'add-circle-outline',
-  },
-  {
-    label: 'Contacted',
-    value: 'CONTACTED',
-    icon: 'call-outline',
-  },
-  {
-    label: 'Qualified',
-    value: 'QUALIFIED',
-    icon: 'checkmark-circle-outline',
-  },
-  {
-    label: 'Converted',
-    value: 'CONVERTED',
-    icon: 'trophy-outline',
-  },
-  {
-    label: 'Lost',
-    value: 'LOST',
-    icon: 'close-circle-outline',
-  },
-];
-
-
-/* ============================================================
-   HELPERS
-============================================================ */
-
-function statusColor(status: LeadStatus): string {
-  switch (status) {
+export function leadStatusTone(s: LeadStatus): BadgeTone {
+  switch (s) {
     case 'NEW':
-      return colors.status.new;
-
+      return 'primary';
     case 'CONTACTED':
-      return colors.status.contacted;
-
+      return 'accent';
     case 'QUALIFIED':
-      return colors.status.qualified;
-
+      return 'warning';
     case 'CONVERTED':
-      return colors.success;
-
+      return 'success';
     case 'LOST':
-      return colors.status.lost;
-
+      return 'danger';
     default:
-      return colors.textMuted;
+      return 'neutral';
   }
 }
 
-
-function formatSource(source: string): string {
-  return source
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, char => char.toUpperCase());
+export function leadStatusColor(theme: Theme, s: LeadStatus): string {
+  switch (s) {
+    case 'NEW':
+      return theme.colors.status.new;
+    case 'CONTACTED':
+      return theme.colors.status.contacted;
+    case 'QUALIFIED':
+      return theme.colors.status.qualified;
+    case 'CONVERTED':
+      return theme.colors.success;
+    case 'LOST':
+      return theme.colors.status.lost;
+    default:
+      return theme.colors.textMuted;
+  }
 }
 
-
-function formatStatus(status: LeadStatus): string {
-  return status
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, char => char.toUpperCase());
+export function sourceMeta(source: string): { label: string; icon: IconName } {
+  const o = leadSourceOptions.find(x => x.value === source);
+  return { label: o?.label ?? source, icon: (o?.icon as IconName) ?? 'ellipsis-horizontal' };
 }
 
+export function ageLabel(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? '1 month ago' : `${months} months ago`;
+}
 
-/* ============================================================
-   AVATAR
-============================================================ */
+/** Filters by status and a search over name, e-mail and phone. */
+export function filterLeads(leads: Lead[], filter: Filter, query: string): Lead[] {
+  const q = query.trim().toLowerCase();
+  const digits = q.replace(/\D/g, '');
+  return leads
+    .filter(l => filter === 'ALL' || l.status === filter)
+    .filter(
+      l =>
+        !q ||
+        l.name.toLowerCase().includes(q) ||
+        (l.email ?? '').toLowerCase().includes(q) ||
+        (digits.length >= 3 && (l.phone ?? '').replace(/\D/g, '').includes(digits)),
+    )
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
 
-function LeadAvatar({
-  name,
-  status,
-}: {
-  name: string;
-  status: LeadStatus;
-}) {
-  const color = statusColor(status);
+export function LeadListScreen({ navigation }: Props) {
+  const theme = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const r = useResponsive();
+  const role = useAppSelector(state => state.auth.user?.role);
+  const canCreate = useCan('lead.create');
+
+  const [leads, setLeads] = useState<Lead[] | null>(null);
+  const [filter, setFilter] = useState<Filter>('ALL');
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setLeads(await listLeads());
+      setError(null);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not load leads.'));
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+  useRefreshOnFocus(load);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { ALL: leads?.length ?? 0 };
+    for (const l of leads ?? []) c[l.status] = (c[l.status] ?? 0) + 1;
+    return c;
+  }, [leads]);
+
+  const visible = useMemo(() => filterLeads(leads ?? [], filter, query), [leads, filter, query]);
+  const closed = (counts.CONVERTED ?? 0) + (counts.LOST ?? 0) + (counts.UNQUALIFIED ?? 0);
+  const conversion = closed > 0 ? Math.round(((counts.CONVERTED ?? 0) / closed) * 100) : 0;
+
+  const header = (
+    <HeroHeader
+      title={role === 'SALES' ? 'My leads' : 'Leads'}
+      subtitle={leads ? `${counts.ALL} leads · ${(counts.NEW ?? 0) + (counts.CONTACTED ?? 0) + (counts.QUALIFIED ?? 0)} open` : 'Prospects to follow up'}
+      icon="person-add-outline"
+      onBack={navigation.canGoBack() ? navigation.goBack : undefined}
+    />
+  );
+
+  if (leads === null) {
+    return (
+      <View style={styles.screen}>
+        {header}
+        <View style={[styles.content, { paddingHorizontal: r.gutter, maxWidth: r.maxWidth }]}>
+          {error ? <ScreenState kind="error" message={error} onRetry={load} /> : [0, 1, 2].map(i => <SkeletonCard key={i} lines={2} />)}
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <View
-      style={[
-        styles.avatar,
-        {
-          backgroundColor: `${color}16`,
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.avatarText,
-          {
-            color,
-          },
-        ]}
+    <View style={styles.screen}>
+      {header}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingHorizontal: r.gutter, maxWidth: r.maxWidth }]}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={theme.colors.primary}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await load();
+              setRefreshing(false);
+            }}
+          />
+        }
       >
-        {name?.charAt(0).toUpperCase() || '?'}
-      </Text>
+        <KpiRow>
+          <Kpi label="New" value={counts.NEW ?? 0} icon="add-circle-outline" color={theme.colors.status.new} hint="not contacted yet" />
+          <Kpi label="In progress" value={(counts.CONTACTED ?? 0) + (counts.QUALIFIED ?? 0)} icon="chatbubbles-outline" color={theme.colors.status.contacted} hint={`${counts.QUALIFIED ?? 0} qualified`} />
+          <Kpi label="Converted" value={counts.CONVERTED ?? 0} icon="checkmark-done-outline" color={theme.colors.success} hint={closed ? `${conversion}% of closed leads` : undefined} />
+          <Kpi label="Lost" value={(counts.LOST ?? 0) + (counts.UNQUALIFIED ?? 0)} icon="close-circle-outline" color={theme.colors.danger} />
+        </KpiRow>
+
+        <View style={styles.search}>
+          <Ionicons name="search" size={18} color={theme.colors.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search name, e-mail or phone"
+            placeholderTextColor={theme.colors.textFaint}
+            style={styles.searchInput}
+            autoCapitalize="none"
+            accessibilityLabel="Search leads"
+          />
+          {query ? (
+            <PressableScale onPress={() => setQuery('')} accessibilityLabel="Clear search" hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={theme.colors.textMuted} />
+            </PressableScale>
+          ) : null}
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {(['ALL', ...LEAD_STATUSES] as Filter[]).map(f => {
+            const active = filter === f;
+            const color = f === 'ALL' ? theme.colors.primary : leadStatusColor(theme, f);
+            return (
+              <PressableScale
+                key={f}
+                onPress={() => setFilter(f)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                style={[styles.chip, active ? { backgroundColor: color, borderColor: color } : null]}
+              >
+                {f !== 'ALL' ? <View style={[styles.chipDot, { backgroundColor: active ? theme.colors.onPrimary : color }]} /> : null}
+                <Text style={[styles.chipText, active ? { color: theme.colors.onPrimary } : null]}>
+                  {f === 'ALL' ? 'All' : leadStatusLabel(f)} · {counts[f] ?? 0}
+                </Text>
+              </PressableScale>
+            );
+          })}
+        </ScrollView>
+
+        {visible.length === 0 ? (
+          <ScreenState
+            kind="empty"
+            title={query || filter !== 'ALL' ? 'No matching leads' : 'No leads yet'}
+            message={query || filter !== 'ALL' ? 'Try another status or search.' : canCreate ? 'Tap “New lead” to add your first prospect.' : 'Leads assigned to you will appear here.'}
+          />
+        ) : (
+          <ResponsiveGrid>
+            {visible.map((lead, i) => (
+              <FadeInView key={lead.id} index={Math.min(i, 8)}>
+                <LeadCard lead={lead} onPress={() => navigation.navigate('LeadDetail', { leadId: lead.id, leadName: lead.name })} />
+              </FadeInView>
+            ))}
+          </ResponsiveGrid>
+        )}
+      </ScrollView>
+
+      {canCreate ? <Fab label="New lead" icon="add" onPress={() => navigation.navigate('LeadForm')} /> : null}
     </View>
   );
 }
 
-
-/* ============================================================
-   MAIN SCREEN
-============================================================ */
-
-export function LeadListScreen({
-  navigation,
-}: Props) {
-  const canCreateLead = useCan('lead.create');
-  const dispatch = useAppDispatch();
-
-  const {
-    items,
-    status,
-    error,
-  } = useAppSelector(
-    state => state.leads,
-  );
-
-  const { width } = useWindowDimensions();
-
-  const [
-    filter,
-    setFilter,
-  ] = useState<LeadStatus | undefined>(
-    undefined,
-  );
-
-  const [
-    refreshing,
-    setRefreshing,
-  ] = useState(false);
-
-  const [
-    search,
-    setSearch,
-  ] = useState('');
-
-  const isTablet = width >= 768;
-  const isDesktop = width >= 1100;
-
-  const horizontalPadding = isDesktop
-    ? 32
-    : isTablet
-      ? 24
-      : 20;
-
-
-  /* ============================================================
-     LOAD LEADS
-  ============================================================ */
-
-  const load = useCallback(
-    (selectedStatus?: LeadStatus) => {
-      if (selectedStatus) {
-        return dispatch(
-          fetchLeads({
-            status: selectedStatus,
-          }),
-        );
-      }
-
-      return dispatch(
-        fetchLeads(),
-      );
-    },
-    [dispatch],
-  );
-
-
-  useEffect(() => {
-    load(filter);
-  }, [filter, load]);
-
-  // Reload after returning from a create/edit form.
-  useRefreshOnFocus(() => load(filter));
-
-
-  /* ============================================================
-     REFRESH
-  ============================================================ */
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-
-    load(filter).finally(() => {
-      setRefreshing(false);
-    });
-  }, [filter, load]);
-
-
-  /* ============================================================
-     FILTER
-  ============================================================ */
-
-  const handleFilterChange = (
-    value: LeadStatus | undefined,
-  ) => {
-    setFilter(value);
-    setSearch('');
-  };
-
-
-  /* ============================================================
-     SEARCH
-  ============================================================ */
-
-  const filteredItems = useMemo(() => {
-    const query = search
-      .trim()
-      .toLowerCase();
-
-    if (!query) {
-      return items;
-    }
-
-    return items.filter(lead => {
-      const name =
-        lead.name?.toLowerCase() ?? '';
-
-      const email =
-        lead.email?.toLowerCase() ?? '';
-
-      const phone =
-        lead.phone?.toLowerCase() ?? '';
-
-      const source =
-        lead.source?.toLowerCase() ?? '';
-
-      return (
-        name.includes(query) ||
-        email.includes(query) ||
-        phone.includes(query) ||
-        source.includes(query)
-      );
-    });
-  }, [items, search]);
-
-
-  const totalLeads =
-    filteredItems.length;
-
-
-  /* ============================================================
-     LEAD CARD
-  ============================================================ */
-
-  const renderLead = ({
-    item,
-  }: {
-    item: Lead;
-  }) => {
-    const color =
-      statusColor(item.status);
-
-    return (
-      <Pressable
-        onPress={() =>
-          navigation.navigate(
-            'LeadDetail',
-            {
-              leadId: item.id,
-              leadName: item.name,
-            },
-          )
-        }
-        style={({ pressed }) => [
-          styles.leadCard,
-          isTablet && styles.leadCardTablet,
-          pressed && styles.cardPressed,
-        ]}
-      >
-
-        {/* TOP ROW */}
-
-        <View style={styles.cardTop}>
-
-          <View style={styles.leadIdentity}>
-
-            <LeadAvatar
-              name={item.name}
-              status={item.status}
-            />
-
-            <View style={styles.nameContainer}>
-
-              <Text
-                style={styles.leadName}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-
-              <View style={styles.sourceRow}>
-
-                <Ionicons
-                  name="globe-outline"
-                  size={13}
-                  color={colors.textMuted}
-                />
-
-                <Text
-                  style={styles.sourceText}
-                  numberOfLines={1}
-                >
-                  {formatSource(item.source)}
-                </Text>
-
-              </View>
-
-            </View>
-
-          </View>
-
-
-          {/* STATUS */}
-
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor: `${color}12`,
-              },
-            ]}
-          >
-
-            <View
-              style={[
-                styles.statusDot,
-                {
-                  backgroundColor: color,
-                },
-              ]}
-            />
-
-            <Text
-              style={[
-                styles.statusText,
-                {
-                  color,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {formatStatus(item.status)}
-            </Text>
-
-          </View>
-
-        </View>
-
-
-        {/* CONTACT INFORMATION */}
-
-        <View style={styles.contactArea}>
-
-          {item.phone ? (
-            <View style={styles.contactItem}>
-
-              <View style={styles.contactIcon}>
-                <Ionicons
-                  name="call-outline"
-                  size={14}
-                  color={colors.primary}
-                />
-              </View>
-
-              <Text
-                style={styles.contactText}
-                numberOfLines={1}
-              >
-                {item.phone}
-              </Text>
-
-            </View>
-          ) : null}
-
-
-          {!item.phone && item.email ? (
-            <View style={styles.contactItem}>
-
-              <View style={styles.contactIcon}>
-                <Ionicons
-                  name="mail-outline"
-                  size={14}
-                  color={colors.primary}
-                />
-              </View>
-
-              <Text
-                style={styles.contactText}
-                numberOfLines={1}
-              >
-                {item.email}
-              </Text>
-
-            </View>
-          ) : null}
-
-
-          {!item.phone && !item.email ? (
-            <View style={styles.contactItem}>
-
-              <View
-                style={[
-                  styles.contactIcon,
-                  styles.mutedContactIcon,
-                ]}
-              >
-                <Ionicons
-                  name="person-outline"
-                  size={14}
-                  color={colors.textMuted}
-                />
-              </View>
-
-              <Text style={styles.noContactText}>
-                No contact information
-              </Text>
-
-            </View>
-          ) : null}
-
-
-          {/* ARROW */}
-
-          <View style={styles.arrowButton}>
-
-            <Ionicons
-              name="chevron-forward"
-              size={17}
-              color={colors.primary}
-            />
-
-          </View>
-
-        </View>
-
-      </Pressable>
-    );
-  };
-
-
-  /* ============================================================
-     EMPTY STATE
-  ============================================================ */
-
-  function EmptyComponent() {
-    const hasSearch =
-      search.trim().length > 0;
-
-    return (
-      <View style={styles.emptyContainer}>
-
-        <View style={styles.emptyIconContainer}>
-
-          <Ionicons
-            name={
-              hasSearch
-                ? 'search-outline'
-                : 'people-outline'
-            }
-            size={30}
-            color={colors.primary}
-          />
-
-        </View>
-
-        <Text style={styles.emptyTitle}>
-
-          {hasSearch
-            ? 'No leads found'
-            : 'No leads yet'}
-
-        </Text>
-
-        <Text style={styles.emptyMessage}>
-
-          {hasSearch
-            ? 'Try a different name, phone number or email.'
-            : filter
-              ? `There are no ${formatStatus(
-                  filter,
-                ).toLowerCase()} leads.`
-              : 'Your leads will appear here once they are created.'}
-
-        </Text>
-
-        {!hasSearch && !filter ? (
-          <View style={styles.emptyHint}>
-
-            <Ionicons
-              name="information-circle-outline"
-              size={15}
-              color={colors.textMuted}
-            />
-
-            <Text style={styles.emptyHintText}>
-              Create your first lead to get started
-            </Text>
-
-          </View>
-        ) : null}
-
-      </View>
-    );
-  }
-
-
-  /* ============================================================
-     LOADING
-  ============================================================ */
-
-  if (
-    status === 'loading' &&
-    !refreshing
-  ) {
-    return (
-      <SafeAreaView
-        style={styles.safeArea}
-        edges={['top']}
-      >
-        <View style={styles.loadingContainer}>
-
-          <View style={styles.loadingIcon}>
-
-            <Ionicons
-              name="people-outline"
-              size={26}
-              color={colors.primary}
-            />
-
-          </View>
-
-          <ActivityIndicator
-            size="small"
-            color={colors.primary}
-          />
-
-          <Text style={styles.loadingText}>
-            Loading leads...
-          </Text>
-
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-
-  /* ============================================================
-     ERROR
-  ============================================================ */
-
-  if (
-    error &&
-    !items.length
-  ) {
-    return (
-      <SafeAreaView
-        style={styles.safeArea}
-        edges={['top']}
-      >
-
-        <View style={styles.errorContainer}>
-
-          <View style={styles.errorIcon}>
-
-            <Ionicons
-              name="alert-circle-outline"
-              size={30}
-              color={colors.danger}
-            />
-
-          </View>
-
-          <Text style={styles.errorTitle}>
-            Couldn't load leads
-          </Text>
-
-          <Text style={styles.errorMessage}>
-            {error}
-          </Text>
-
-          <Pressable
-            onPress={() => load(filter)}
-            style={({ pressed }) => [
-              styles.retryButton,
-              pressed && styles.buttonPressed,
-            ]}
-          >
-
-            <Ionicons
-              name="refresh-outline"
-              size={17}
-              color={colors.textInverse}
-            />
-
-            <Text style={styles.retryText}>
-              Try again
-            </Text>
-
-          </Pressable>
-
-        </View>
-
-      </SafeAreaView>
-    );
-  }
-
-
-  /* ============================================================
-     MAIN UI
-  ============================================================ */
-
+function LeadCard({ lead, onPress }: { lead: Lead; onPress: () => void }) {
+  const theme = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const color = leadStatusColor(theme, lead.status);
+  const src = sourceMeta(lead.source);
+  const initials = lead.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || '?';
   return (
-    <SafeAreaView
-      style={styles.safeArea}
-      edges={['top']}
-    >
-
-      <View style={styles.container}>
-
-        {/* =====================================================
-            TOP NAVIGATION
-        ===================================================== */}
-
-        <View
-          style={[
-            styles.topBar,
-            {
-              paddingHorizontal:
-                horizontalPadding,
-            },
-          ]}
-        >
-
-          <Pressable
-            onPress={() => navigation.goBack()}
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.backButton,
-              pressed && styles.buttonPressed,
-            ]}
-          >
-
-            <Ionicons
-              name="arrow-back"
-              size={23}
-              color={colors.text}
-            />
-
-          </Pressable>
-
-
-          <Text style={styles.topBarTitle}>
-            Leads
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={`${lead.name}, ${leadStatusLabel(lead.status)}`} style={[styles.card, { borderLeftColor: color }]}>
+      <View style={styles.cardTop}>
+        <View style={[styles.avatar, { backgroundColor: `${color}22` }]}>
+          <Text style={[styles.avatarText, { color }]}>{initials}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.name} numberOfLines={1}>
+            {lead.name}
           </Text>
-
-
-          <View style={styles.topBarSpacer} />
-
-        </View>
-
-
-        {/* =====================================================
-            PAGE HEADER
-        ===================================================== */}
-
-        <View
-          style={[
-            styles.pageHeader,
-            {
-              paddingHorizontal:
-                horizontalPadding,
-            },
-          ]}
-        >
-
-          <View style={styles.pageHeaderText}>
-
-            <Text style={styles.pageTitle}>
-              Leads
+          <View style={styles.metaRow}>
+            <Ionicons name={src.icon} size={12} color={theme.colors.textMuted} />
+            <Text style={styles.meta} numberOfLines={1}>
+              {src.label} · {ageLabel(lead.createdAt)}
             </Text>
-
-            <Text style={styles.pageSubtitle}>
-              Manage and track your sales leads
-            </Text>
-
           </View>
-
-
-          <View style={styles.countBadge}>
-
-            <Text style={styles.countNumber}>
-              {totalLeads}
-            </Text>
-
-            <Text style={styles.countLabel}>
-              TOTAL
-            </Text>
-
-          </View>
-
         </View>
-
-
-        {/* =====================================================
-            SEARCH
-        ===================================================== */}
-
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              marginHorizontal:
-                horizontalPadding,
-            },
-          ]}
-        >
-
-          <Ionicons
-            name="search-outline"
-            size={20}
-            color={colors.textMuted}
-          />
-
-          <TextInput
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search leads..."
-            placeholderTextColor={
-              colors.textMuted
-            }
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-
-          {search.length > 0 ? (
-            <Pressable
-              onPress={() => setSearch('')}
-              hitSlop={10}
-            >
-
-              <View style={styles.clearButton}>
-
-                <Ionicons
-                  name="close"
-                  size={15}
-                  color={colors.textMuted}
-                />
-
-              </View>
-
-            </Pressable>
-          ) : null}
-
-        </View>
-
-
-        {/* =====================================================
-            FILTERS
-        ===================================================== */}
-
-        <FlatList
-          horizontal
-          data={FILTERS}
-          keyExtractor={item => item.label}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal:
-              horizontalPadding,
-            paddingVertical: 4,
-          }}
-          style={styles.filterList}
-          renderItem={({ item }) => {
-
-            const active =
-              filter === item.value;
-
-            return (
-              <Pressable
-                onPress={() =>
-                  handleFilterChange(
-                    item.value,
-                  )
-                }
-                style={({ pressed }) => [
-                  styles.filterChip,
-                  active &&
-                    styles.filterChipActive,
-                  pressed &&
-                    styles.filterPressed,
-                ]}
-              >
-
-                <Ionicons
-                  name={item.icon}
-                  size={15}
-                  color={
-                    active
-                      ? '#FFFFFF'
-                      : colors.textMuted
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.filterText,
-                    active &&
-                      styles.filterTextActive,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-
-              </Pressable>
-            );
-          }}
-        />
-
-
-        {/* =====================================================
-            ERROR BANNER
-        ===================================================== */}
-
-        {error && items.length > 0 ? (
-          <View
-            style={[
-              styles.errorBanner,
-              {
-                marginHorizontal:
-                  horizontalPadding,
-              },
-            ]}
-          >
-
-            <Ionicons
-              name="warning-outline"
-              size={16}
-              color={colors.danger}
-            />
-
-            <Text
-              style={styles.errorBannerText}
-              numberOfLines={2}
-            >
-              {error}
-            </Text>
-
-          </View>
-        ) : null}
-
-
-        {/* =====================================================
-            LEAD LIST
-        ===================================================== */}
-
-        <FlatList
-          data={filteredItems}
-          keyExtractor={item => item.id}
-          renderItem={renderLead}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-
-          contentContainerStyle={[
-            styles.list,
-            {
-              paddingHorizontal:
-                horizontalPadding,
-            },
-            filteredItems.length === 0 &&
-              styles.emptyList,
-          ]}
-
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
-            />
-          }
-
-          ListEmptyComponent={
-            EmptyComponent
-          }
-
-          ListHeaderComponent={
-            filteredItems.length > 0 ? (
-              <View style={styles.resultHeader}>
-
-                <Text style={styles.resultTitle}>
-                  {filter
-                    ? formatStatus(filter)
-                    : 'All Leads'}
-                </Text>
-
-                <Text style={styles.resultCount}>
-                  {totalLeads}{' '}
-                  {totalLeads === 1
-                    ? 'lead'
-                    : 'leads'}
-                </Text>
-
-              </View>
-            ) : undefined
-          }
-        />
-
+        <StatusBadge label={leadStatusLabel(lead.status)} tone={leadStatusTone(lead.status)} />
       </View>
-
-
-      {canCreateLead ? <Fab label="New lead" onPress={() => navigation.navigate('LeadForm')} /> : null}
-    </SafeAreaView>
+      <View style={styles.cardBottom}>
+        <View style={styles.owner}>
+          <Ionicons name="person-circle-outline" size={15} color={theme.colors.textMuted} />
+          <Text style={styles.meta} numberOfLines={1}>
+            {lead.assignedTo?.name ?? 'Unassigned'}
+          </Text>
+        </View>
+        {lead.phone ? (
+          <PressableScale onPress={() => Linking.openURL(`tel:${lead.phone}`).catch(() => undefined)} accessibilityRole="button" accessibilityLabel={`Call ${lead.name}`} style={styles.callBtn}>
+            <Ionicons name="call" size={14} color={theme.colors.success} />
+            <Text style={[styles.callText, { color: theme.colors.success }]} numberOfLines={1}>
+              {lead.phone}
+            </Text>
+          </PressableScale>
+        ) : lead.email ? (
+          <Text style={styles.meta} numberOfLines={1}>
+            {lead.email}
+          </Text>
+        ) : null}
+      </View>
+    </PressableScale>
   );
 }
 
-
-/* ============================================================
-   STYLES
-============================================================ */
-
-const styles = createThemedStyles(() => StyleSheet.create({
-
-  /* ==========================================================
-     ROOT
-  ========================================================== */
-
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-
-
-  /* ==========================================================
-     TOP BAR
-  ========================================================== */
-
-  topBar: {
-    height: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-
-  topBarTitle: {
-    marginLeft: 14,
-    fontSize: 19,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.3,
-  },
-
-  topBarSpacer: {
-    flex: 1,
-  },
-
-
-  /* ==========================================================
-     PAGE HEADER
-  ========================================================== */
-
-  pageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-
-    paddingTop: 24,
-    paddingBottom: 18,
-
-    backgroundColor: colors.background,
-  },
-
-  pageHeaderText: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 18,
-  },
-
-  pageTitle: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.8,
-  },
-
-  pageSubtitle: {
-    marginTop: 5,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textMuted,
-  },
-
-
-  /* ==========================================================
-     COUNT BADGE
-  ========================================================== */
-
-  countBadge: {
-    width: 62,
-    height: 62,
-    borderRadius: 18,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.primary,
-
-    shadowColor: '#2563EB',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-
-  countNumber: {
-    color: colors.textInverse,
-    fontSize: 22,
-    lineHeight: 25,
-    fontWeight: '800',
-  },
-
-  countLabel: {
-    marginTop: 2,
-    color: '#DBEAFE',
-    fontSize: 7,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-
-
-  /* ==========================================================
-     SEARCH
-  ========================================================== */
-
-  searchContainer: {
-    height: 54,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    paddingHorizontal: 16,
-
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-
-    backgroundColor: colors.surface,
-
-    shadowColor: '#0F172A',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.035,
-    shadowRadius: 8,
-    elevation: 1,
-
-    marginBottom: 12,
-  },
-
-  searchInput: {
-    flex: 1,
-    minWidth: 0,
-
-    marginLeft: 11,
-
-    color: colors.text,
-    fontSize: 15,
-
-    paddingVertical: 0,
-  },
-
-  clearButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.surfaceAlt,
-  },
-
-
-  /* ==========================================================
-     FILTERS
-  ========================================================== */
-
-  filterList: {
-    flexGrow: 0,
-    maxHeight: 48,
-  },
-
-  filterChip: {
-    height: 38,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    paddingHorizontal: 14,
-
-    borderRadius: 999,
-
-    borderWidth: 1,
-    borderColor: colors.border,
-
-    backgroundColor: colors.surface,
-
-    marginRight: 8,
-  },
-
-  filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-
-    shadowColor: '#2563EB',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 7,
-    elevation: 3,
-  },
-
-  filterText: {
-    marginLeft: 6,
-
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  filterTextActive: {
-    color: colors.textInverse,
-    fontWeight: '700',
-  },
-
-  filterPressed: {
-    opacity: 0.72,
-    transform: [
-      {
-        scale: 0.97,
-      },
-    ],
-  },
-
-
-  /* ==========================================================
-     ERROR BANNER
-  ========================================================== */
-
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    marginTop: 10,
-
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-
-    borderRadius: 12,
-
-    backgroundColor: colors.dangerSoft,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-
-  errorBannerText: {
-    flex: 1,
-    marginLeft: 8,
-
-    color: colors.danger,
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '500',
-  },
-
-
-  /* ==========================================================
-     LIST
-  ========================================================== */
-
-  list: {
-    paddingTop: 14,
-    paddingBottom: 30,
-  },
-
-  emptyList: {
-    flexGrow: 1,
-  },
-
-
-  /* ==========================================================
-     RESULT HEADER
-  ========================================================== */
-
-  resultHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-
-    marginBottom: 10,
-    paddingHorizontal: 2,
-  },
-
-  resultTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-
-  resultCount: {
-    color: colors.textFaint,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
-
-  /* ==========================================================
-     LEAD CARD
-  ========================================================== */
-
-  leadCard: {
-    backgroundColor: colors.surface,
-
-    borderWidth: 1,
-    borderColor: '#E8EDF3',
-
-    borderRadius: 18,
-
-    padding: 15,
-
-    marginBottom: 10,
-
-    shadowColor: '#0F172A',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.045,
-    shadowRadius: 9,
-    elevation: 2,
-  },
-
-  leadCardTablet: {
-    maxWidth: 850,
-    alignSelf: 'center',
-    width: '100%',
-  },
-
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  leadIdentity: {
-    flex: 1,
-    minWidth: 0,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    marginRight: 10,
-  },
-
-  avatar: {
-    width: 46,
-    height: 46,
-
-    borderRadius: 15,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-  },
-
-  avatarText: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
-  nameContainer: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  leadName: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '500',
-    letterSpacing: -0.15,
-  },
-
-  sourceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    marginTop: 4,
-  },
-
-  sourceText: {
-    flexShrink: 1,
-
-    marginLeft: 5,
-
-    color: colors.textFaint,
-    fontSize: 11.5,
-    fontWeight: '500',
-  },
-
-
-  /* ==========================================================
-     STATUS
-  ========================================================== */
-
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-
-    borderRadius: 999,
-
-    maxWidth: 120,
-  },
-
-  statusDot: {
-    width: 6,
-    height: 6,
-
-    borderRadius: 3,
-
-    marginRight: 5,
-  },
-
-  statusText: {
-    flexShrink: 1,
-
-    fontSize: 10.5,
-    fontWeight: '800',
-  },
-
-
-  /* ==========================================================
-     CONTACT
-  ========================================================== */
-
-  contactArea: {
-    minHeight: 40,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    marginTop: 13,
-    paddingTop: 11,
-
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-
-  contactItem: {
-    flex: 1,
-    minWidth: 0,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  contactIcon: {
-    width: 29,
-    height: 29,
-
-    borderRadius: 9,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.primaryLight,
-
-    marginRight: 8,
-  },
-
-  mutedContactIcon: {
-    backgroundColor: colors.surfaceAlt,
-  },
-
-  contactText: {
-    flex: 1,
-
-    color: colors.textSecondary,
-    fontSize: 12.5,
-    fontWeight: '500',
-  },
-
-  noContactText: {
-    flex: 1,
-
-    color: colors.textFaint,
-    fontSize: 12.5,
-    fontWeight: '500',
-  },
-
-  arrowButton: {
-    width: 30,
-    height: 30,
-
-    borderRadius: 10,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.background,
-
-    marginLeft: 8,
-  },
-
-  cardPressed: {
-    opacity: 0.92,
-
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-
-  /* ==========================================================
-     EMPTY STATE
-  ========================================================== */
-
-  emptyContainer: {
-    flex: 1,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    paddingHorizontal: 30,
-    paddingBottom: 40,
-  },
-
-  emptyIconContainer: {
-    width: 72,
-    height: 72,
-
-    borderRadius: 22,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.primaryLight,
-
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-
-    marginBottom: 18,
-  },
-
-  emptyTitle: {
-    color: colors.text,
-
-    fontSize: 21,
-    lineHeight: 27,
-
-    fontWeight: '500',
-
-    textAlign: 'center',
-    letterSpacing: -0.3,
-  },
-
-  emptyMessage: {
-    maxWidth: 310,
-
-    marginTop: 7,
-
-    color: colors.textMuted,
-
-    fontSize: 14,
-    lineHeight: 21,
-
-    fontWeight: '400',
-
-    textAlign: 'center',
-  },
-
-  emptyHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    marginTop: 20,
-
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-
-    borderRadius: 999,
-
-    backgroundColor: colors.surfaceAlt,
-  },
-
-  emptyHintText: {
-    marginLeft: 6,
-
-    color: colors.textMuted,
-
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-
-
-  /* ==========================================================
-     LOADING
-  ========================================================== */
-
-  loadingContainer: {
-    flex: 1,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.background,
-  },
-
-  loadingIcon: {
-    width: 60,
-    height: 60,
-
-    borderRadius: 20,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.primaryLight,
-
-    marginBottom: 18,
-  },
-
-  loadingText: {
-    marginTop: 10,
-
-    color: colors.textMuted,
-
-    fontSize: 13,
-    fontWeight: '500',
-  },
-
-
-  /* ==========================================================
-     ERROR SCREEN
-  ========================================================== */
-
-  errorContainer: {
-    flex: 1,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    paddingHorizontal: 30,
-
-    backgroundColor: colors.background,
-  },
-
-  errorIcon: {
-    width: 68,
-    height: 68,
-
-    borderRadius: 22,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: colors.dangerSoft,
-
-    borderWidth: 1,
-    borderColor: '#FECACA',
-
-    marginBottom: 18,
-  },
-
-  errorTitle: {
-    color: colors.text,
-
-    fontSize: 20,
-    fontWeight: '500',
-
-    textAlign: 'center',
-  },
-
-  errorMessage: {
-    maxWidth: 320,
-
-    marginTop: 7,
-
-    color: colors.textMuted,
-
-    fontSize: 13,
-    lineHeight: 20,
-
-    textAlign: 'center',
-  },
-
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    marginTop: 20,
-
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-
-    borderRadius: 12,
-
-    backgroundColor: colors.primary,
-  },
-
-  retryText: {
-    marginLeft: 7,
-
-    color: colors.textInverse,
-
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  buttonPressed: {
-    opacity: 0.72,
-  },
-
-}));
+function makeStyles(theme: Theme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: theme.colors.background },
+    content: { paddingTop: 16, paddingBottom: 110, width: '100%', alignSelf: 'center' },
+    search: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, paddingHorizontal: 12, minHeight: 46 },
+    searchInput: { flex: 1, color: theme.colors.text, fontSize: 15, paddingVertical: 10 },
+    chips: { gap: 8, paddingVertical: 14 },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: 99, paddingHorizontal: 13, paddingVertical: 8, minHeight: 36 },
+    chipDot: { width: 8, height: 8, borderRadius: 4 },
+    chipText: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: '700' },
+    card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, borderLeftWidth: 4, padding: 14, marginBottom: 12 },
+    cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    avatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    avatarText: { fontWeight: '800', fontSize: 16 },
+    name: { color: theme.colors.text, fontSize: 16, fontWeight: '800' },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+    meta: { color: theme.colors.textMuted, fontSize: 12, flexShrink: 1 },
+    cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border },
+    owner: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
+    callBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: theme.colors.successSoft, flexShrink: 1 },
+    callText: { fontSize: 12, fontWeight: '700' },
+  });
+}

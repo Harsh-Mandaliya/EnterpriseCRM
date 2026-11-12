@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.1 — 2026-11-13 — Real PDF downloads, lead screens, responsive layout
+
+### Fixed
+- **PDFs did not download.** On web the bill opened in a pop-up *after* loading company details, so browsers blocked it and the app page was printed instead; on phones only a share sheet appeared. Now every PDF (bill, receipt, customer statement, reports, team report, agenda, AI insights) is a real file:
+  - **Web:** generated in the browser (html2pdf.js) and downloaded directly as e.g. `INV-0004.pdf` — no pop-up, no print dialog.
+  - **Android:** saved into **Downloads** (pick the folder once; it is remembered), then "Share" is offered.
+  - **iPhone:** the share sheet opens with the named PDF ("Save to Files", WhatsApp, Mail).
+- PDF styles are scoped (`.crm-doc`) so generating a document never restyles the app.
+- **Lead screens did not match the rest of the app**: rebuilt the lead list (gradient header, KPIs, search, status chips with counts, cards with owner, source, age and one-tap call) and the lead page (identity card, Call / WhatsApp / E-mail / Task / Deal actions, status tracker, convert card or link to the customer, details, tasks, who-did-what history, delete for managers and above). Status chips were clipped on phones.
+- Pipeline deal cards show the owner's name.
+
+### Added
+- **Responsive layout**: shared breakpoints (`useResponsive`) and `ResponsiveGrid` — one column on phones, two on tablets, two or three on desktop; KPI tiles four across on wide screens; consistent page gutters (12 px on small phones, 24 px on tablets) and max widths. Applied to leads, reports, team activity, customer, invoice, calendar and AI Center; calendar cells size from the same gutters.
+
+### Tests
+- App 75 → **81** (`leadsPdf.test.ts`: lead filtering and search, status tones, breakpoints, PDF file names, scoped CSS for the web export). Backend unchanged (117).
+- Browser: the downloaded `INV-0004.pdf` and `business-report.pdf` were captured and opened — valid A4 PDFs (bill on one page, report across two). Lead screens checked at 320, 375 and 1280 px with no horizontal overflow.
+- Expo SDK 58 patch update; Expo Doctor 20/20.
+
 ## 1.4.0 — 2026-11-12 — Hierarchy everywhere, PDF bills, advanced reports & AI Center
 
 ### Added

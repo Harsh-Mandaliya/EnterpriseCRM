@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ResponsiveGrid } from '@/components/common/ResponsiveGrid';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,6 +58,8 @@ interface Data {
 export function ReportsScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const layout = useResponsive();
+  const pad = { paddingHorizontal: layout.gutter, maxWidth: layout.maxWidth };
   const role = useAppSelector(state => state.auth.user?.role);
   const full = can(role, 'reports.view');
   const company = usePdfCompany();
@@ -194,7 +198,7 @@ export function ReportsScreen({ navigation }: Props) {
     <View style={styles.screen}>
       {header}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, pad]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -228,6 +232,7 @@ export function ReportsScreen({ navigation }: Props) {
               <Kpi label="Open pipeline" value={kpis.openValue} money icon="git-branch-outline" color={theme.colors.primary} hint={`${kpis.openCount} deals · ${formatCompactCurrency(kpis.weightedForecast)} weighted`} />
               <Kpi label="Won" value={kpis.wonValue} money icon="trophy-outline" color={theme.colors.accent} hint={kpis.winRate === null ? undefined : `${Math.round(kpis.winRate * 100)}% win rate`} />
             </KpiRow>
+            <ResponsiveGrid>
             <FadeInView index={0}>
               <Panel title="Money collected per month" icon="cash-outline" subtitle="Payments received">
                 {r.monthly.length ? <BarChart data={r.monthly.map(m => ({ label: MONTHS[m.month - 1], value: m.total, color: theme.colors.success }))} format={formatCompactCurrency} highlightLast /> : <Text style={styles.empty}>No payments yet.</Text>}
@@ -253,11 +258,13 @@ export function ReportsScreen({ navigation }: Props) {
                 )}
               </Panel>
             </FadeInView>
+            </ResponsiveGrid>
           </>
         ) : null}
 
         {tab === 'sales' ? (
           <>
+            <ResponsiveGrid>
             {data.revenue ? (
               <Panel title="Revenue — last 12 months" icon="trending-up-outline" subtitle={`Paid invoices · ${inr(data.revenue.reduce((s, m) => s + m.revenue, 0))}`}>
                 {data.revenue.length ? <BarChart data={data.revenue.map(m => ({ label: MONTHS[m.month - 1], value: m.revenue }))} format={formatCompactCurrency} highlightLast /> : <Text style={styles.empty}>No paid invoices yet.</Text>}
@@ -291,6 +298,7 @@ export function ReportsScreen({ navigation }: Props) {
                 ))}
               </Panel>
             ) : null}
+            </ResponsiveGrid>
             <ActionButton label="Download sales report (PDF)" icon="download-outline" onPress={() => exportReport('sales')} busy={exporting} />
           </>
         ) : null}
@@ -303,6 +311,7 @@ export function ReportsScreen({ navigation }: Props) {
               <Kpi label="Outstanding" value={r.totals.outstanding} money icon="hourglass-outline" color={theme.colors.warning} />
               <Kpi label="Overdue" value={r.totals.overdue} money icon="alert-circle-outline" color={theme.colors.danger} hint={`${r.totals.overdueCount} invoice(s)`} />
             </KpiRow>
+            <ResponsiveGrid>
             <Panel title="How late is unpaid money?" icon="hourglass-outline" subtitle="Ageing of outstanding balance">
               <MeterRow label="Not yet due" value={r.aging.current} max={agingMax} color={theme.colors.success} display={formatCompactCurrency(r.aging.current)} />
               <MeterRow label="1–30 days late" value={r.aging.d1_30} max={agingMax} color={theme.colors.warning} display={formatCompactCurrency(r.aging.d1_30)} />
@@ -353,6 +362,7 @@ export function ReportsScreen({ navigation }: Props) {
                 ))}
               </Panel>
             ) : null}
+            </ResponsiveGrid>
             <ActionButton label="Download receivables report (PDF)" icon="download-outline" onPress={() => exportReport('money')} busy={exporting} />
           </>
         ) : null}

@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ResponsiveGrid } from '@/components/common/ResponsiveGrid';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Alert, Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,6 +62,8 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
   const { customerId, customerName } = route.params;
   const theme = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const layout = useResponsive();
+  const pad = { paddingHorizontal: layout.gutter, maxWidth: layout.maxWidth };
   const canEdit = useCan('customer.create');
   const canInvoice = useCan('invoice.create');
   const canDeal = useCan('deal.create');
@@ -215,7 +219,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
     <View style={styles.screen}>
       {header}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, pad]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -279,6 +283,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
 
         {tab === 'overview' ? (
           <>
+            <ResponsiveGrid>
             <Panel title="Account health" icon="pulse-outline">
               <Text style={styles.body}>{health.text}</Text>
               {pendingTasks.length ? <Text style={[styles.body, { marginTop: 6 }]}>{pendingTasks.length} open task(s) for this customer.</Text> : null}
@@ -297,6 +302,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
               <InfoRow icon="calendar-outline" label="Customer since" value={longDate(customer.createdAt)} />
               {customer.notes ? <Text style={styles.notes}>{customer.notes}</Text> : null}
             </Panel>
+            </ResponsiveGrid>
             <ActionButton label="Download statement (PDF)" icon="download-outline" onPress={exportStatement} busy={exporting} />
           </>
         ) : null}
@@ -368,6 +374,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
 
         {tab === 'activity' ? (
           <>
+            <ResponsiveGrid>
             <Panel title="Tasks" icon="checkbox-outline" subtitle={`${pendingTasks.length} open`} action={{ label: 'Add', icon: 'add', onPress: () => navigation.navigate('TaskForm', { customerId }) }}>
               {tasks.length === 0 ? (
                 <Text style={styles.empty}>No tasks yet.</Text>
@@ -409,6 +416,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
                 ))
               )}
             </Panel>
+            </ResponsiveGrid>
           </>
         ) : null}
       </ScrollView>

@@ -129,3 +129,16 @@ Not covered: native Android/iOS build on a device, e-mail delivery, Google sign-
 **Browser (web build + local API, 375 px):** sign-in in **dark mode** shows the full "EnterpriseCRM" brand (was only "E"); registration steps and company-code preview; invoice list shows customer names (was "Unknown customer"); invoice page maths (150 × ₹950 + 12 % GST = ₹1,59,600) and the generated bill (company + customer GSTIN, amount in words, bank details, balance) rendered and checked; Reports — collected 84.8 % = ₹8,89,190 of ₹10,48,790, ageing, who owes, collectors reconciled by hand; Alerts "Needs attention" with reasons; Calendar month/agenda; Customer page tabs and history; Team activity per person with flags; AI Center briefing and deal probabilities (signals add up as documented). Found and fixed during the walk-through: calendar month wrapping, pipeline/payment donut legends showing raw rupees, action buttons not filling the row, and inconsistent "paid" maths for invoices marked PAID by hand.
 
 Not covered: printing to a physical printer, PDF sharing on a real phone (expo-print / expo-sharing are mocked in Jest; on web the generated document was inspected).
+
+## v1.4.1 additions (2026-11-13)
+
+| Check | Result |
+|---|---|
+| App tsc / ESLint / Jest | ✅ 0 / 0 · **81 passed** (new `leadsPdf.test.ts`) |
+| Backend tests | ✅ 117 passed |
+| Expo Doctor | ✅ 20/20 |
+| Web PDF download | ✅ "Download bill (PDF)" and "Download full business report (PDF)" produced real files (`INV-0004.pdf`, 281 KB, `%PDF-1.3`; `business-report.pdf`, 2 pages) — captured and opened to check the layout |
+| Android bundle with the new file-saving code | ✅ `expo export --platform android` |
+| Responsive | ✅ lead list/detail at 320, 375 and 1280 px; reports two-column on desktop; no horizontal overflow |
+
+Not verified on a physical phone: saving to Downloads (Android) and the iOS share sheet. They use expo-print, expo-file-system and expo-sharing; on the first save Android asks you to pick the Downloads folder.

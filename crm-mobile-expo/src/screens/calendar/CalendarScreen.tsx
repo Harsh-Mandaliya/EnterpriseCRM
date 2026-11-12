@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +75,8 @@ export function weekDays(anchor: Date): Date[] {
 export function CalendarScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const layout = useResponsive();
+  const pad = { paddingHorizontal: layout.gutter, maxWidth: layout.maxWidth };
   const { width } = useWindowDimensions();
   const me = useAppSelector(state => state.auth.user);
   const company = usePdfCompany();
@@ -224,8 +227,8 @@ export function CalendarScreen({ navigation }: Props) {
     );
   }
 
-  // screen padding 32 + card padding 12 + six 2px gaps between seven cells
-  const cell = Math.floor((Math.min(width, 760) - 32 - 12 - 12) / 7);
+  // page gutter both sides + card padding 12 + six 2px gaps between seven cells
+  const cell = Math.floor((Math.min(width, layout.maxWidth) - 2 * layout.gutter - 12 - 12) / 7);
   const selectedKey = toDateInput(selected);
   const dayEvents = byDay.get(selectedKey) ?? [];
   const title =
@@ -245,7 +248,7 @@ export function CalendarScreen({ navigation }: Props) {
     <View style={styles.screen}>
       {header}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, pad]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

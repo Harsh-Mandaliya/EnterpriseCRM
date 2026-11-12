@@ -34,7 +34,7 @@ Every company gets its own look (logo, name, five theme presets, brand colours, 
 ## Features
 
 **Sales**
-- **Leads** — capture, assign, qualify, convert to a customer + deal in one step, duplicate warnings on the same e-mail or phone.
+- **Leads** — capture, assign, qualify, convert to a customer + deal in one step, duplicate warnings on the same e-mail or phone; searchable list with status counts and a lead page with a status tracker, quick call / WhatsApp / e-mail, tasks and history.
 - **Deals (pipeline)** — kanban board by stage, list view, move a deal to any stage, win probability and weighted forecast.
 - **Customers** — owners, sharing with colleagues, GSTIN, billing address; a customer page with account health, deals, invoices, payments, tasks, meetings, history and a downloadable **statement (PDF)**; call / WhatsApp / e-mail in one tap.
 - **Tasks & calls** — tasks, calls, e-mails, meetings and notes linked to leads, customers or deals; due dates and overdue tracking. Each person sees their own tasks, managers their team's, owner/admin everyone's.
@@ -42,7 +42,7 @@ Every company gets its own look (logo, name, five theme presets, brand colours, 
 
 **Billing**
 - **Products** — catalogue with price and stock.
-- **Invoices** — line items from the catalogue, GST rate, automatic totals and numbering (`INV-0001…`), overdue detection; invoice page with paid/balance progress and history; **download the bill as a GST tax-invoice PDF** (both parties, GSTINs, amount in words, bank details).
+- **Invoices** — line items from the catalogue, GST rate, automatic totals and numbering (`INV-0001…`), overdue detection; invoice page with paid/balance progress and history; **download the bill as a GST tax-invoice PDF** (both parties, GSTINs, amount in words, bank details). PDFs download as real files: directly in the browser, into Downloads on Android, via "Save to Files" on iPhone.
 - **Payments** — partial payments, balance due; an invoice becomes PAID when fully paid; **payment receipt PDF** for every payment.
 - **Company billing details** — legal name, address, GSTIN, phone, e-mail and bank details printed on every bill and receipt (owner only).
 

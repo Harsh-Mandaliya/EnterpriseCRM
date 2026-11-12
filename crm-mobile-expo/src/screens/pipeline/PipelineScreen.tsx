@@ -416,10 +416,17 @@ function DealCard({ deal, index, onPress, wide }: { deal: Opportunity; index: nu
             <Text style={styles.dealMeta}>No close date</Text>
           )}
           {deal.owner ? (
-            <View style={[styles.avatar, { backgroundColor: theme.colors.primaryLight }]}>
-              <Text style={[styles.avatarText, { color: theme.colors.primary }]}>{deal.owner.name.slice(0, 1).toUpperCase()}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 }}>
+              <View style={[styles.avatar, { backgroundColor: theme.colors.primaryLight }]}>
+                <Text style={[styles.avatarText, { color: theme.colors.primary }]}>{deal.owner.name.slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <Text style={styles.dealMeta} numberOfLines={1}>
+                {deal.owner.name.split(' ')[0]}
+              </Text>
             </View>
-          ) : null}
+          ) : (
+            <Text style={styles.dealMeta}>Unowned</Text>
+          )}
         </View>
       </PressableScale>
     </FadeInView>
