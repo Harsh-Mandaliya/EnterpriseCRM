@@ -52,11 +52,14 @@ import type {
 } from '@/types';
 
 import { createThemedStyles } from '@/theme/themeStore';
+import { useCan } from '@/utils/permissions';
 /* ============================================================
    SCREEN
 ============================================================ */
 
 export function ProductListScreen() {
+  // EMPLOYEE can view the catalogue but not change it (server returns 403).
+  const canManage = useCan('product.manage');
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const [items, setItems] = useState<Product[]>([]);
 
@@ -711,10 +714,12 @@ export function ProductListScreen() {
             >
               {search
                 ? 'Try a different product or category.'
-                : 'Add your first product to start managing inventory.'}
+                : canManage
+                  ? 'Add your first product to start managing inventory.'
+                  : 'Products added by your team will appear here.'}
             </Text>
 
-            {!search ? (
+            {!search && canManage ? (
               <Pressable
                 onPress={
                   openCreateModal
@@ -742,6 +747,7 @@ export function ProductListScreen() {
           FAB
       ====================================================== */}
 
+      {canManage ? (
       <Pressable
         style={({ pressed }) => [
           styles.fab,
@@ -751,6 +757,7 @@ export function ProductListScreen() {
         onPress={
           openCreateModal
         }
+        accessibilityLabel="Add product"
       >
         <Text
           style={
@@ -760,6 +767,7 @@ export function ProductListScreen() {
           +
         </Text>
       </Pressable>
+      ) : null}
 
       {/* ======================================================
           CREATE PRODUCT MODAL

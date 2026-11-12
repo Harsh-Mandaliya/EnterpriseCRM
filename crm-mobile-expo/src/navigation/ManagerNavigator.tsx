@@ -224,6 +224,7 @@ export function ManagerNavigator() {
         }
         options={{
           title: 'Leads',
+          headerShown: false, // the screen draws its own top bar
         }}
       />
 
@@ -236,6 +237,7 @@ export function ManagerNavigator() {
           title:
             route.params.leadName ||
             'Lead',
+          headerShown: false,
         })}
       />
 

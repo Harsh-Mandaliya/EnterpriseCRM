@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test --test-concurrency=1 \"tests/**/*.test.ts\"",
     "migrate": "tsx scripts/migrate.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
     "audit:prod": "npm audit --omit=dev"
   },
   "dependencies": {

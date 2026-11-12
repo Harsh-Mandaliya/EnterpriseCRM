@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.1 — 2026-11-12 — Two-company end-to-end test
+
+Found by seeding two realistic companies and testing every role against them (see `docs/DEMO_DATA.md`).
+
+### Fixed
+- **Editing or changing the status of any assigned lead failed with 400** — the assignee was read after `populate()`, so the "lead assigned" notification got a user object instead of an id.
+- **Admin dashboard showed 0 open deals and ₹0 pipeline** (string company id in an aggregation matched nothing) and **counted converted/unqualified leads as open**.
+- **A team manager lost sight of leads and deals they created** without picking an assignee (saved unassigned, but team managers only see their team). They now default to the creator; OWNER/ADMIN can still leave them unassigned.
+- **Reps' own tasks never counted as "Pending tasks"** — the task form sends no assignee for SALES/EMPLOYEE and dashboards count by assignee. Tasks without an assignee now belong to their creator; `npm run migrate` backfills old ones.
+- App: **Analytics "Tasks & follow-ups" counted the whole company's tasks** for SALES/EMPLOYEE; now only their own, like the rest of "Your own pipeline".
+- App: **EMPLOYEE saw "Add customer" and "Add product" buttons** the server rejects with 403 — hidden now.
+- App: **double header** on the Leads list and Lead screens for ADMIN, MANAGER and SALES.
+- App: owner dashboard card "Today's Visits / Scheduled visits" actually counted activities logged today — relabelled "Today's Activity / Logged today".
+
+### Added
+- `npm run seed:demo` — two complete demo companies through the API (`scripts/seed-demo.ts`) and `docs/DEMO_DATA.md` with sign-ins and the expected per-role counts.
+
+### Tests
+- Backend 97 → **102**; mobile 59 → **62**.
+
 ## 1.3.0 — 2026-11-04 — Redesign, motion, visual pipeline, SDK 58
 
 ### Fixed

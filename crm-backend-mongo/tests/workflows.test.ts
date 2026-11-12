@@ -88,6 +88,23 @@ describe('teams and manager scope', () => {
     assert.ok(!ids.includes(leadOutside));
   });
 
+  test('a team manager still sees the lead and deal they create without an assignee', async () => {
+    // Regression: these were saved unassigned and vanished from the
+    // manager's own (team-scoped) lists.
+    const lead = await client.post('/leads', { name: 'Manager own lead' }, manager.accessToken);
+    assert.equal(lead.status, 201, JSON.stringify(lead.body));
+    assert.equal(lead.body.assignedTo?.id ?? lead.body.assignedToId, manager.id);
+    assert.equal((await client.get(`/leads/${lead.body.id}`, manager.accessToken)).status, 200);
+
+    const deal = await client.post('/opportunities', { title: 'Manager own deal', amount: 1000 }, manager.accessToken);
+    assert.equal(deal.status, 201, JSON.stringify(deal.body));
+    assert.equal((await client.get(`/opportunities/${deal.body.id}`, manager.accessToken)).status, 200);
+
+    // OWNER may still create an unassigned lead.
+    const ownerLead = await client.post('/leads', { name: 'Pool lead' }, owner.accessToken);
+    assert.equal(ownerLead.body.assignedTo?.id ?? ownerLead.body.assignedToId ?? null, null);
+  });
+
   test('a manager without a team keeps company-wide visibility', async () => {
     assert.equal((await client.get(`/leads/${leadOutside}`, teamlessManager.accessToken)).status, 200);
   });

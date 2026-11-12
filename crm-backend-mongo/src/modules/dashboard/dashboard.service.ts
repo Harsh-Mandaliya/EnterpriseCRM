@@ -1114,6 +1114,9 @@ export async function getAdminSummary(
   companyId: string,
   userId: string,
 ) {
+  // Aggregations don't cast strings to ObjectId; a string companyId
+  // in $match silently matches nothing (open deals were always 0).
+  const companyObjectId = new Types.ObjectId(companyId);
 
   const [
     totalUsers,
@@ -1183,15 +1186,12 @@ export async function getAdminSummary(
        OPEN LEADS
     ======================================================== */
 
+    // Same definition as the owner dashboard (lead statuses have no
+    // WON/CLOSED; CONVERTED and UNQUALIFIED are not open).
     Lead.countDocuments({
       companyId,
-
       status: {
-        $nin: [
-          'WON',
-          'LOST',
-          'CLOSED',
-        ],
+        $in: ['NEW', 'CONTACTED', 'QUALIFIED'],
       },
     }),
 
@@ -1205,7 +1205,7 @@ export async function getAdminSummary(
       {
         $match: {
 
-          companyId,
+          companyId: companyObjectId,
 
           stage: {
             $nin: [

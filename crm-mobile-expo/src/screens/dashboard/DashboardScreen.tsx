@@ -641,7 +641,7 @@ export function DashboardScreen({
             />
 
             <StatCard
-              title="Today's Visits"
+              title="Today's Activity"
               value={
                 summary
                   ? String(
@@ -649,7 +649,7 @@ export function DashboardScreen({
                     )
                   : '0'
               }
-              subtitle="Scheduled visits"
+              subtitle="Logged today"
               icon="⌖"
               iconColor={
                 COLORS.purple

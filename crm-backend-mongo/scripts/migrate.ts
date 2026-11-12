@@ -142,6 +142,15 @@ async function run() {
     `[migrate] phone digits backfilled: ${normalised}, lead e-mails lower-cased: ${mixedCaseEmails.length}`,
   );
 
+  /* ---- tasks without assignee belong to their creator (v1.3.1) ---- */
+  const activities = mongoose.connection.db!.collection('activities');
+  const unassignedFilter = { assignedToId: null, createdById: { $ne: null } };
+  const unassignedTasks = await activities.countDocuments(unassignedFilter);
+  if (!dryRun && unassignedTasks) {
+    await activities.updateMany(unassignedFilter, [{ $set: { assignedToId: '$createdById' } }]);
+  }
+  console.log(`[migrate] tasks given their creator as assignee: ${unassignedTasks}`);
+
   if (!dryRun) {
     for (const model of [Company, User, RefreshToken, PasswordResetToken, AuditLog, Team, Customer, Lead]) {
       await model.syncIndexes();

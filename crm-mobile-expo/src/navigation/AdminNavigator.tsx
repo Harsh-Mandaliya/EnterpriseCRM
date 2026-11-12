@@ -263,6 +263,7 @@ export function AdminNavigator() {
         }
         options={{
           title: 'Leads',
+          headerShown: false, // the screen draws its own top bar
         }}
       />
 
@@ -273,6 +274,7 @@ export function AdminNavigator() {
         }
         options={{
           title: 'Lead',
+          headerShown: false,
         }}
       />
 

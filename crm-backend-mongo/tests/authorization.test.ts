@@ -200,3 +200,61 @@ describe('injection and input hardening', () => {
     assert.equal(res.body.stack, undefined);
   });
 });
+
+describe('editing an assigned lead (regression)', () => {
+  // updateLead read the assignee after populate(), got a user object instead
+  // of an id and failed with 400 on every edit of an assigned lead.
+  test('status change and edit of an assigned lead succeed and keep the assignee', async () => {
+    const status = await client.patch(`/leads/${leadOfSales}/status`, { status: 'CONTACTED' }, salesA.accessToken);
+    assert.equal(status.status, 200, JSON.stringify(status.body));
+    assert.equal(status.body.status, 'CONTACTED');
+
+    const edit = await client.patch(`/leads/${leadOfSales}`, { phone: '+91 90000 00001' }, ownerA.accessToken);
+    assert.equal(edit.status, 200, JSON.stringify(edit.body));
+    assert.equal(edit.body.assignedTo?.id, salesA.id);
+  });
+
+  test('reassigning notifies the new assignee', async () => {
+    const res = await client.patch(`/leads/${leadOfSales}`, { assignedToId: sales2A.id }, ownerA.accessToken);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const inbox = await client.get('/notifications', sales2A.accessToken);
+    assert.equal(inbox.status, 200);
+    const items = Array.isArray(inbox.body) ? inbox.body : (inbox.body.items ?? inbox.body.notifications ?? []);
+    assert.ok(items.some((n: any) => n.title === 'Lead assigned to you'), JSON.stringify(inbox.body));
+  });
+});
+
+describe('own tasks on the dashboard (regression)', () => {
+  // Reps' task forms send no assignee; such tasks were never counted in
+  // "pending tasks" because the dashboard counts by assignee.
+  test('a task created without an assignee belongs to its creator', async () => {
+    const created = await client.post('/activities', { type: 'TASK', summary: 'Follow up quotation' }, salesA.accessToken);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const id = created.body.assignedToId?.id ?? created.body.assignedToId ?? created.body.assignedTo?.id;
+    assert.equal(String(id), salesA.id);
+
+    const dash = await client.get('/dashboard/sales-summary', salesA.accessToken);
+    assert.equal(dash.status, 200);
+    assert.ok(Number(JSON.stringify(dash.body).match(/"pendingTasks":(\d+)/)?.[1]) >= 1, JSON.stringify(dash.body));
+  });
+});
+
+describe('admin dashboard figures (regression)', () => {
+  // Open deals were always 0 (string companyId in an aggregation) and
+  // converted/unqualified leads were counted as open.
+  test('counts open deals, pipeline value and only open lead statuses', async () => {
+    const before = (await client.get('/dashboard/admin-summary', adminA.accessToken)).body;
+    await client.post('/opportunities', { title: 'Admin dash deal', amount: 7000, stage: 'PROPOSAL' }, ownerA.accessToken);
+    await client.post('/opportunities', { title: 'Won deal', amount: 9000, stage: 'WON' }, ownerA.accessToken);
+    const open = await client.post('/leads', { name: 'Open lead' }, ownerA.accessToken);
+    const closed = await client.post('/leads', { name: 'Unqualified lead' }, ownerA.accessToken);
+    await client.patch(`/leads/${closed.body.id}/status`, { status: 'UNQUALIFIED' }, ownerA.accessToken);
+    assert.equal(open.status, 201);
+
+    const after = (await client.get('/dashboard/admin-summary', adminA.accessToken)).body;
+    assert.equal(after.openDeals, before.openDeals + 1);
+    assert.equal(after.pipelineRevenue, before.pipelineRevenue + 7000);
+    assert.ok(after.openDeals >= 1);
+    assert.equal(after.openLeads, before.openLeads + 1);
+  });
+});

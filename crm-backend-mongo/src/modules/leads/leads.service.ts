@@ -99,10 +99,12 @@ export async function updateLead(
   const previousAssignee = existing.assignedToId?.toString();
   Object.assign(existing, input);
   await existing.save();
+  // Read the id before populate: afterwards assignedToId is a user object
+  // and toString() no longer returns the id.
+  const newAssignee = existing.assignedToId?.toString();
   await existing.populate([POPULATE_ASSIGNED, POPULATE_CUSTOMER]);
   // Only notify when the assignee actually changed to someone new — editing
   // an unrelated field shouldn't re-notify the same person every time.
-  const newAssignee = existing.assignedToId?.toString();
   if (newAssignee && newAssignee !== previousAssignee) {
     await notify(companyId, newAssignee, {
       type: 'LEAD',

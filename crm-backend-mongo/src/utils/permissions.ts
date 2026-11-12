@@ -142,6 +142,15 @@ export function hasCompanyWideVisibility(
 }
 
 /**
+ * OWNER and ADMIN always see every record. Unlike
+ * hasCompanyWideVisibility this excludes MANAGER, whose view
+ * narrows to their team when they lead one.
+ */
+export function seesEverything(role: RoleName): boolean {
+  return role === 'OWNER' || role === 'ADMIN';
+}
+
+/**
  * OWNER outranks ADMIN outranks everyone else. An ADMIN may
  * manage MANAGER / SALES / EMPLOYEE accounts but not other
  * ADMINs or the OWNER; only the OWNER manages ADMINs.

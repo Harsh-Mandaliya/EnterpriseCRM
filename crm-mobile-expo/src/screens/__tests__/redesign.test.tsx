@@ -13,6 +13,8 @@ import type { Me, Opportunity, Role } from '@/types';
 import { AnalyticsScreen } from '@/screens/analytics/AnalyticsScreen';
 import { LeadFormScreen } from '@/screens/forms/LeadFormScreen';
 import { PipelineScreen } from '@/screens/pipeline/PipelineScreen';
+import { CustomerListScreen } from '@/screens/customers/CustomerListScreen';
+import { ProductListScreen } from '@/screens/products/ProductListScreen';
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 jest.mock('@react-navigation/native', () => ({
@@ -41,11 +43,13 @@ jest.mock('@/api/opportunities.api', () => ({
   updateOpportunityStage: jest.fn(),
   createOpportunity: jest.fn(),
 }));
-jest.mock('@/api/activities.api', () => ({ listActivities: () => Promise.resolve([]) }));
+const mockListActivities = jest.fn<() => Promise<unknown[]>>(() => Promise.resolve([]));
+jest.mock('@/api/activities.api', () => ({ listActivities: () => mockListActivities() }));
 jest.mock('@/api/reports.api', () => ({
   getSalesReport: () => mockSalesReport(),
   getTopCustomersReport: () => Promise.resolve([]),
 }));
+jest.mock('@/api/products.api', () => ({ listProducts: () => Promise.resolve([]), createProduct: jest.fn() }));
 jest.mock('@/api/ai.api', () => ({ getSalesForecast: () => Promise.resolve(null) }));
 
 function makeStore(role: Role) {
@@ -164,9 +168,43 @@ describe('AnalyticsScreen', () => {
     expect(screen.queryByText('Collected revenue (paid invoices)')).toBeNull();
   });
 
+  it('counts only tasks assigned to the rep', async () => {
+    const task = (id: string, assignedToId: string, status = 'PENDING') => ({ id, type: 'TASK', summary: id, status, assignedToId, dueAt: null });
+    mockListActivities.mockResolvedValueOnce([task('mine', 'u1'), task('mine-done', 'u1', 'COMPLETED'), task('colleague', 'u9'), task('colleague2', 'u9')]);
+    renderWith('SALES', <AnalyticsScreen navigation={navigation as never} route={{ key: 'a', name: 'Analytics' } as never} />);
+    expect(await screen.findByText('Tasks & follow-ups')).toBeTruthy();
+    // centre of the donut = open tasks: 1 own, not 3 company-wide
+    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
+    expect(screen.queryByText('3')).toBeNull();
+  });
+
   it('shows revenue for an ADMIN', async () => {
     renderWith('ADMIN', <AnalyticsScreen navigation={navigation as never} route={{ key: 'a', name: 'Analytics' } as never} />);
     expect(await screen.findByText('Collected revenue (paid invoices)')).toBeTruthy();
     expect(mockSalesReport).toHaveBeenCalled();
+  });
+});
+
+describe('create buttons follow role rules', () => {
+  // The server rejects these for EMPLOYEE with 403, so the app must not offer them.
+  it('EMPLOYEE gets no Add customer / Add product buttons', async () => {
+    renderWith('EMPLOYEE', <CustomerListScreen navigation={navigation as never} route={{ key: 'c', name: 'CustomerList' } as never} />);
+    expect(await screen.findByText('Customers shared with you will appear here.')).toBeTruthy();
+    expect(screen.queryByText('Add customer')).toBeNull();
+    expect(screen.queryByLabelText('Add customer')).toBeNull();
+    screen.unmount();
+
+    renderWith('EMPLOYEE', <ProductListScreen />);
+    expect(await screen.findByText('Products added by your team will appear here.')).toBeTruthy();
+    expect(screen.queryByText('Add product')).toBeNull();
+    expect(screen.queryByLabelText('Add product')).toBeNull();
+  });
+
+  it('SALES keeps them', async () => {
+    renderWith('SALES', <CustomerListScreen navigation={navigation as never} route={{ key: 'c', name: 'CustomerList' } as never} />);
+    expect(await screen.findByText('Add customer')).toBeTruthy();
+    screen.unmount();
+    renderWith('SALES', <ProductListScreen />);
+    expect(await screen.findByLabelText('Add product')).toBeTruthy();
   });
 });

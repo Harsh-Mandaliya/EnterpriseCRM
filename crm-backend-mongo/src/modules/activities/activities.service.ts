@@ -153,6 +153,10 @@ export async function createActivity(
 
       createdById,
 
+      // A task created without an assignee is the creator's own task
+      // (reps' forms don't send one); dashboards count by assignee.
+      assignedToId: safeInput.assignedToId ?? createdById,
+
       status: 'PENDING',
 
       completedById: null,

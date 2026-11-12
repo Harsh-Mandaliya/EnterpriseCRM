@@ -406,6 +406,7 @@ npx expo start
 | backend | `npm test` | API integration tests (needs MongoDB) |
 | backend | `npm run typecheck` | TypeScript check |
 | backend | `npm run migrate` | Upgrade an existing database (back up first) |
+| backend | `npm run seed:demo` | Create two demo companies with data in every module (see `docs/DEMO_DATA.md`) |
 | app | `npx expo start` | Start the app |
 | app | `npm test` | App tests |
 | app | `npm run typecheck` / `npm run lint` | Code checks |

@@ -52,6 +52,7 @@ export function AnalyticsScreen({ navigation }: Props) {
   const styles = useThemedStyles(makeStyles);
   const { width } = useWindowDimensions();
   const role = useAppSelector(state => state.auth.user?.role);
+  const userId = useAppSelector(state => state.auth.user?.id);
   const showReports = can(role, 'reports.view');
   const twoColumns = width >= 900;
 
@@ -84,7 +85,11 @@ export function AnalyticsScreen({ navigation }: Props) {
   const derived = useMemo(() => {
     if (!data) return null;
     const now = new Date();
-    const pending = data.activities.filter(a => a.status === 'PENDING');
+    // The tasks API is company-wide; reps only count tasks assigned to them
+    // so the card matches the rest of 'Your own pipeline'.
+    const ownOnly = role === 'SALES' || role === 'EMPLOYEE';
+    const activities = ownOnly ? data.activities.filter(a => a.assignedToId === userId) : data.activities;
+    const pending = activities.filter(a => a.status === 'PENDING');
     return {
       kpis: pipelineKpis(data.deals),
       stages: summarizeStages(data.deals),
@@ -94,10 +99,10 @@ export function AnalyticsScreen({ navigation }: Props) {
       tasks: {
         overdue: pending.filter(a => a.dueAt && new Date(a.dueAt) < now).length,
         pending: pending.filter(a => !a.dueAt || new Date(a.dueAt) >= now).length,
-        done: data.activities.filter(a => a.status === 'COMPLETED').length,
+        done: activities.filter(a => a.status === 'COMPLETED').length,
       },
     };
-  }, [data]);
+  }, [data, role, userId]);
 
   const header = (
     <HeroHeader

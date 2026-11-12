@@ -99,3 +99,20 @@ Not exercised in the browser: the Teams screen (covered by API + component tests
 **New mobile tests:** pipeline maths (weighted forecast, win rate, overdue, funnel, monthly buckets, leaderboard), invoice totals equal the server's rounding, client role rules, strict date parsing, compact ₹ formatting, password strength; Lead form shows "assigned to you" for SALES and an assignee picker for MANAGER, validates before calling the API and never sends `assignedToId` for reps; Pipeline shows "New deal" for SALES but not EMPLOYEE; Analytics never calls revenue reports for SALES and shows them for ADMIN.
 
 **Browser E2E (isolated backend on port 4100, throw-away DB, dropped afterwards; 375 px phone viewport):** login card layout (found and fixed clipping), sign-in, dashboard → Pipeline (KPIs verified by hand: weighted ₹4L, win rate 50%), move a deal to Proposal from the sheet, New deal form (empty-submit validation, live 75% / weighted ₹1.5L, saved, list refreshed), Analytics as SALES ("your own pipeline", no revenue section, overdue task shown), New lead with a customer's e-mail → duplicate prompt → saved → list refreshed. Found and fixed: blank gradient headers on stacked screens (web).
+
+## v1.3.1 — two-company end-to-end test (2026-11-12)
+
+Data: `npm run seed:demo` (two companies, all five roles, every module — `docs/DEMO_DATA.md`), created through the real API on the local `crm_db`.
+
+**API verification script — 243 checks, all passing:**
+- *Authentication*: all 12 users sign in and get the right role and company; wrong password and unknown e-mail give the same 401; another company's password doesn't work; missing, garbage and tampered tokens → 401; duplicate registration → 409; weak password → 400; refresh rotation, replayed refresh token → 401 and the whole session family revoked; refresh after logout → 401.
+- *Record scoping*: each rep sees only their own leads, deals, customers, invoices; colleagues' records → 404; the team manager sees the team (and their own) but not the rep outside the team.
+- *Role permissions*: EMPLOYEE can't create leads/customers/invoices; SALES and MANAGER can't create users; ADMIN can't create an ADMIN, edit the OWNER or change their own role; only OWNER/ADMIN edit branding, only OWNER the company profile; all five dashboards and the reports return 200/403 exactly per role.
+- *Cross-company isolation*: in both directions and for 10 modules — no record of one company appears in the other's lists; GET/PATCH/DELETE by id → 404; leads/invoices/payments can't reference the other company's customer, user or invoice; duplicate check and top-customer report never show the other company. The database was checked afterwards: nothing was modified.
+- *Branding*: Sunset vs Royal per company, public lookup by company code (no ids or e-mails exposed), unknown code 404, personal theme allowed in one company and locked in the other.
+
+**Browser (web build against the same API, 375 px phone viewport):** company-code lookup switches the sign-in screen to the company's look; SALES (Emerald role theme), OWNER (Royal), MANAGER, EMPLOYEE and ADMIN dashboards; leads list and detail, status change, pipeline and analytics. Dashboard, pipeline and analytics figures were recalculated by hand from the seeded data. No horizontal overflow.
+
+Bugs found and fixed: see CHANGELOG 1.3.1 (8 issues). The test server ran with `AUTH_RATE_LIMIT_MAX` and `API_RATE_LIMIT_MAX` raised, because the script makes several hundred requests per minute; the limiter itself is covered by the automated tests.
+
+Not covered: native Android/iOS build on a device, e-mail delivery, Google sign-in.

@@ -25,6 +25,7 @@ import type { Customer } from '@/types';
 import type { MainStackParamList } from '@/navigation/OwnerNavigator';
 
 import { createThemedStyles } from '@/theme/themeStore';
+import { useCan } from '@/utils/permissions';
 type Props = NativeStackScreenProps<
   MainStackParamList,
   'CustomerList'
@@ -37,6 +38,9 @@ type Props = NativeStackScreenProps<
 export function CustomerListScreen({
   navigation,
 }: Props) {
+  // EMPLOYEE can't create customers (server returns 403).
+  const canCreate = useCan('customer.create');
+
   const [customers, setCustomers] =
     useState<Customer[]>([]);
 
@@ -294,10 +298,12 @@ export function CustomerListScreen({
         >
           {search.trim()
             ? 'Try a different search.'
-            : 'Add your first customer to get started.'}
+            : canCreate
+              ? 'Add your first customer to get started.'
+              : 'Customers shared with you will appear here.'}
         </Text>
 
-        {!search.trim() && (
+        {!search.trim() && canCreate && (
           <Pressable
             onPress={() =>
               navigation.navigate(
@@ -688,6 +694,7 @@ export function CustomerListScreen({
           ADD CUSTOMER
       ====================================================== */}
 
+      {canCreate ? (
       <Pressable
         style={({ pressed }) => [
           styles.fab,
@@ -708,6 +715,7 @@ export function CustomerListScreen({
           +
         </Text>
       </Pressable>
+      ) : null}
     </View>
   );
 }

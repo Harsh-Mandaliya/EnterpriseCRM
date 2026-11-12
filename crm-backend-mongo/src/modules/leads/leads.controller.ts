@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthedRequest } from '@/middlewares/auth.middleware';
 import * as leadsService from '@/modules/leads/leads.service';
 import { scopeFor } from '@/utils/scope';
-import { hasCompanyWideVisibility } from '@/utils/permissions';
+import { seesEverything } from '@/utils/permissions';
 import { assertNoDuplicates, findDuplicates } from '@/utils/duplicates';
 
 const scopeOf = (req: AuthedRequest) => scopeFor(req.user!, 'assignedToId');
@@ -35,10 +35,11 @@ export async function create(req: AuthedRequest, res: Response, next: NextFuncti
     req.body = body;
     const lead = await leadsService.createLead(req.user!.companyId, {
       ...req.body,
-      // Reps who only see their own leads own what they create.
+      // Without an explicit assignee the creator owns the lead. Only
+      // OWNER/ADMIN may leave it unassigned: a team manager would
+      // otherwise lose sight of a lead they just created.
       assignedToId:
-        req.body.assignedToId ??
-        (hasCompanyWideVisibility(req.user!.role) ? undefined : req.user!.userId),
+        req.body.assignedToId ?? (seesEverything(req.user!.role) ? undefined : req.user!.userId),
     });
     res.status(201).json(lead);
   } catch (err) {

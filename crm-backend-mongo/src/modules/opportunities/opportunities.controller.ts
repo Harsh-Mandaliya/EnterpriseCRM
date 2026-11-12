@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthedRequest } from '@/middlewares/auth.middleware';
 import * as oppService from '@/modules/opportunities/opportunities.service';
 import { scopeFor } from '@/utils/scope';
-import { hasCompanyWideVisibility } from '@/utils/permissions';
+import { seesEverything } from '@/utils/permissions';
 
 const scopeOf = (req: AuthedRequest) => scopeFor(req.user!, 'ownerId');
 
@@ -28,9 +28,9 @@ export async function create(req: AuthedRequest, res: Response, next: NextFuncti
   try {
     const opp = await oppService.createOpportunity(req.user!.companyId, {
       ...req.body,
+      // Same rule as leads: only OWNER/ADMIN may leave a deal unowned.
       ownerId:
-        req.body.ownerId ??
-        (hasCompanyWideVisibility(req.user!.role) ? undefined : req.user!.userId),
+        req.body.ownerId ?? (seesEverything(req.user!.role) ? undefined : req.user!.userId),
     });
     res.status(201).json(opp);
   } catch (err) {

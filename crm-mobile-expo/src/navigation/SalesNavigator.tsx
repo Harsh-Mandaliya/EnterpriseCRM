@@ -142,6 +142,7 @@ export function SalesNavigator() {
         component={LeadListScreen}
         options={{
           title: 'My Leads',
+          headerShown: false, // the screen draws its own top bar
         }}
       />
 
@@ -150,6 +151,7 @@ export function SalesNavigator() {
         component={LeadDetailScreen}
         options={{
           title: 'Lead',
+          headerShown: false,
         }}
       />
 
