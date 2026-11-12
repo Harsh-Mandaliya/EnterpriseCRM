@@ -250,7 +250,7 @@ export function ActivitiesScreen() {
 
         <View style={styles.search}>
           <Ionicons name="search" size={18} color={theme.colors.textMuted} />
-          <TextInput
+          <TextInput underlineColorAndroid="transparent"
             value={query}
             onChangeText={setQuery}
             placeholder="Search tasks or people"

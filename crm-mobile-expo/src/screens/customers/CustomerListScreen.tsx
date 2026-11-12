@@ -123,7 +123,7 @@ export function CustomerListScreen({ navigation }: Props) {
         {/* search — always mounted so it keeps focus */}
         <View style={styles.search}>
           <Ionicons name="search" size={19} color={theme.colors.textMuted} />
-          <TextInput
+          <TextInput underlineColorAndroid="transparent"
             value={query}
             onChangeText={setQuery}
             placeholder="Search name, phone, e-mail, GSTIN or city"

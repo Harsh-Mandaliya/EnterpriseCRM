@@ -29,7 +29,7 @@ export function TextField({
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextInput underlineColorAndroid="transparent"
         style={[styles.input, Boolean(error) && styles.inputError, style]}
         placeholderTextColor={theme.colors.textFaint}
         autoCapitalize="none"

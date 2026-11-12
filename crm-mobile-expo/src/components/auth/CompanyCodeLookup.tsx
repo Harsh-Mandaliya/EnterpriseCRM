@@ -70,7 +70,7 @@ export function CompanyCodeLookup() {
     <View style={styles.box}>
       <Text style={styles.label}>Company code</Text>
       <View style={styles.row}>
-        <TextInput
+        <TextInput underlineColorAndroid="transparent"
           value={code}
           onChangeText={setCode}
           onBlur={() => setTouched(true)}

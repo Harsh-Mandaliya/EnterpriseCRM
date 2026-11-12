@@ -91,7 +91,7 @@ export function InputField({
       <Animated.View style={[styles.inputWrap, multiline && styles.inputWrapMultiline, { borderColor }]}>
         {icon ? <Ionicons name={icon} size={18} color={error ? theme.colors.danger : theme.colors.textMuted} /> : null}
         {prefix ? <Text style={styles.prefix}>{prefix}</Text> : null}
-        <TextInput
+        <TextInput underlineColorAndroid="transparent"
           {...props}
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : 'center'}
@@ -261,7 +261,7 @@ export function PickerField({
           <Text style={styles.sheetTitle}>{label}</Text>
           <View style={[styles.inputWrap, { marginBottom: 10 }]}>
             <Ionicons name="search" size={18} color={theme.colors.textMuted} />
-            <TextInput
+            <TextInput underlineColorAndroid="transparent"
               value={query}
               onChangeText={setQuery}
               placeholder="Search"
@@ -428,7 +428,7 @@ export function DateField({
       <View style={[styles.row, { marginTop: 8 }]}>
         <View style={[styles.inputWrap, { flex: 2 }]}>
           <Ionicons name="calendar-outline" size={18} color={theme.colors.textMuted} />
-          <TextInput
+          <TextInput underlineColorAndroid="transparent"
             value={dateText}
             onChangeText={text => setDateText(text)}
             onBlur={() => commit(dateText, timeText)}
@@ -442,7 +442,7 @@ export function DateField({
         {withTime ? (
           <View style={[styles.inputWrap, { flex: 1 }]}>
             <Ionicons name="time-outline" size={18} color={theme.colors.textMuted} />
-            <TextInput
+            <TextInput underlineColorAndroid="transparent"
               value={timeText}
               onChangeText={setTimeText}
               onBlur={() => commit(dateText, timeText)}
@@ -495,7 +495,7 @@ export function StepperField({
         >
           <Ionicons name="remove" size={18} color={theme.colors.primary} />
         </PressableScale>
-        <TextInput
+        <TextInput underlineColorAndroid="transparent"
           value={text}
           onChangeText={setText}
           onBlur={() => {
