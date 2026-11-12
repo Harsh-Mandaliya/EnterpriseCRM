@@ -81,3 +81,18 @@ describe('customer list', () => {
     expect(shortAddress(null)).toBeNull();
   });
 });
+
+import { webApiUrl } from '@/api/client';
+
+describe('web API address', () => {
+  it('uses the page host for local / LAN backends so the browser does not block it', () => {
+    expect(webApiUrl('http://192.168.31.66:4000/api/v1', 'localhost')).toBe('http://localhost:4000/api/v1');
+    expect(webApiUrl('http://192.168.31.66:4000/api/v1', '192.168.31.66')).toBe('http://192.168.31.66:4000/api/v1');
+    expect(webApiUrl('http://192.168.31.66:4000/api/v1', '127.0.0.1')).toBe('http://127.0.0.1:4000/api/v1');
+  });
+  it('leaves public APIs and public pages alone', () => {
+    expect(webApiUrl('https://api.example.com/api/v1', 'localhost')).toBe('https://api.example.com/api/v1');
+    expect(webApiUrl('http://192.168.31.66:4000/api/v1', 'crm.example.com')).toBe('http://192.168.31.66:4000/api/v1');
+    expect(webApiUrl('http://192.168.31.66:4000/api/v1', undefined)).toBe('http://192.168.31.66:4000/api/v1');
+  });
+});

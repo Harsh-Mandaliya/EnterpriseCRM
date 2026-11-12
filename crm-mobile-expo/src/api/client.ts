@@ -45,10 +45,37 @@ const DEFAULT_API_URL =
 const ENV_API_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim();
 
-export const BASE_URL =
+const CONFIGURED_URL =
   ENV_API_URL && ENV_API_URL.length > 0
     ? ENV_API_URL.replace(/\/+$/, '')
     : DEFAULT_API_URL;
+
+const PRIVATE_HOST = /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/;
+
+/**
+ * Web build: when the configured API is on this machine / LAN and the
+ * page is opened from this machine (http://localhost:8081) or a LAN
+ * address, call the API through the same host the page came from.
+ * Browsers block, or ask permission for, a localhost page reaching a
+ * LAN IP ("local network access"), which made sign-in fail with a
+ * network error. Public API URLs (https://api.example.com) are untouched.
+ */
+export function webApiUrl(configured: string, pageHost: string | undefined): string {
+  if (!pageHost) return configured;
+  try {
+    const api = new URL(configured);
+    if (!PRIVATE_HOST.test(api.hostname) || !PRIVATE_HOST.test(pageHost)) return configured;
+    api.hostname = pageHost;
+    return api.toString().replace(/\/+$/, '');
+  } catch {
+    return configured;
+  }
+}
+
+export const BASE_URL =
+  Platform.OS === 'web'
+    ? webApiUrl(CONFIGURED_URL, typeof window !== 'undefined' ? window.location?.hostname : undefined)
+    : CONFIGURED_URL;
 
 /**
  * ============================================================
