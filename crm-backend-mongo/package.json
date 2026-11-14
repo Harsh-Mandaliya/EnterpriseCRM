@@ -1,6 +1,6 @@
 {
   "name": "crm-backend-mongo",
-  "version": "1.4.2",
+  "version": "1.4.4",
   "private": true,
   "main": "dist/server.js",
   "scripts": {
