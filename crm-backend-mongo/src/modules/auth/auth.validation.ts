@@ -41,6 +41,15 @@ export const registerSchema = z.object({
    EMAIL / PASSWORD LOGIN
 ============================================================ */
 
+/** Optional company code from the login page (same rule as /company/public/:slug). */
+const companyCodeField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9-]{3,40}$/, 'Invalid company code')
+  .optional()
+  .or(z.literal('').transform(() => undefined));
+
 export const loginSchema = z.object({
   body: z.object({
     email: z
@@ -55,6 +64,8 @@ export const loginSchema = z.object({
         'Password is required',
       )
       .max(128),
+
+    companyCode: companyCodeField,
   }),
 });
 
@@ -85,6 +96,8 @@ export const googleAuthSchema = z.object({
         1,
         'Google credential is required',
       ),
+
+    companyCode: companyCodeField,
   }),
 });
 

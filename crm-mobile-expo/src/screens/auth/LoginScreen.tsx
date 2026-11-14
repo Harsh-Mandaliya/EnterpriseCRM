@@ -19,6 +19,13 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * Loading or clearing a company code changes the theme, which
+ * rebuilds the navigator. Keep what was typed (in memory only)
+ * so the user does not have to type it again.
+ */
+const draft = { email: '', password: '' };
+
+/**
  * Sign in. Sessions are stored securely on the device and kept
  * until sign-out (or until the server ends them).
  */
@@ -26,9 +33,19 @@ export function LoginScreen({ navigation }: Props) {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { isSubmitting, error } = useAppSelector(state => state.auth);
+  // The company shown at the top of the page (from its company code).
+  const companyCode = useAppSelector(state => state.branding.preLogin?.slug ?? null);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmailState] = useState(draft.email);
+  const [password, setPasswordState] = useState(draft.password);
+  const setEmail = (value: string) => {
+    draft.email = value;
+    setEmailState(value);
+  };
+  const setPassword = (value: string) => {
+    draft.password = value;
+    setPasswordState(value);
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -54,7 +71,10 @@ export function LoginScreen({ navigation }: Props) {
   function handleSubmit() {
     setSubmitted(true);
     if (emailError || passwordError || isSubmitting) return;
-    dispatch(login({ email: email.trim().toLowerCase(), password }));
+    dispatch(login({ email: email.trim().toLowerCase(), password, companyCode })).then(result => {
+      // Never keep a password around after a successful sign-in.
+      if (login.fulfilled.match(result)) draft.password = '';
+    });
   }
 
   return (

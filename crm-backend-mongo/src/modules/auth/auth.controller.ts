@@ -49,9 +49,15 @@ export async function login(
 
     const password = String(req.body.password);
 
+    const companyCode =
+      typeof req.body.companyCode === 'string' && req.body.companyCode
+        ? req.body.companyCode
+        : undefined;
+
     const tokens = await authService.login(
       email,
       password,
+      companyCode,
     );
 
     return res.status(200).json(tokens);
@@ -91,11 +97,12 @@ export async function googleAuth(
   next: NextFunction,
 ) {
   try {
-    const { credential } = req.body;
+    const { credential, companyCode } = req.body;
 
     const tokens =
       await authService.googleAuth(
         credential,
+        companyCode || undefined,
       );
 
     return res.status(200).json(tokens);

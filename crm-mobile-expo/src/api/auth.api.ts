@@ -18,12 +18,16 @@ export async function register(input: {
 export async function login(
   email: string,
   password: string,
+  companyCode?: string | null,
 ): Promise<AuthTokens> {
+  const code = companyCode?.trim().toLowerCase();
   const { data } = await apiClient.post<AuthTokens>(
     '/auth/login',
     {
       email: email.trim().toLowerCase(),
       password,
+      // On a company's login page only that company's people may sign in.
+      ...(code ? { companyCode: code } : {}),
     },
   );
 

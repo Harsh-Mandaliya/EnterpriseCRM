@@ -147,7 +147,7 @@ Not verified on a physical phone: saving to Downloads (Android) and the iOS shar
 
 | Check | Result |
 |---|---|
-| Backend tests | ✅ **124 passed** (new `tests/tasks.test.ts`, 7 tests) |
+| Backend tests | ✅ **130 passed** (6 new company-code sign-in tests in `tests/auth.test.ts`) |
 | App tsc / ESLint / Jest | ✅ 0 / 0 · **86 passed** (new `tasks.test.ts`) |
 | Customer search, browser | ✅ typing one key at a time keeps focus; "sur" finds the two Surat customers (address search) |
 | Tasks, browser | ✅ completed tasks show who completed them, date and time, and on-time / late |

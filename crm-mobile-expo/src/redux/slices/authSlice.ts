@@ -11,6 +11,7 @@ import {
   clearTokens,
   getRefreshToken,
   hasStoredSession,
+  forgetOtherCompanyCode,
 } from '@/storage/secureStorage';
 
 import type { Me } from '@/types';
@@ -74,6 +75,8 @@ export const hydrateSession = createAsyncThunk(
       const user =
         await authApi.me();
 
+      await forgetOtherCompanyCode(user?.company?.slug).catch(() => false);
+
       return user;
     } catch (error) {
       /*
@@ -98,6 +101,7 @@ export const login = createAsyncThunk(
     input: {
       email: string;
       password: string;
+      companyCode?: string | null;
     },
     { rejectWithValue },
   ) => {
@@ -110,6 +114,7 @@ export const login = createAsyncThunk(
         await authApi.login(
           input.email,
           input.password,
+          input.companyCode,
         );
 
       /*
@@ -124,6 +129,8 @@ export const login = createAsyncThunk(
 
       const user =
         await authApi.me();
+
+      await forgetOtherCompanyCode(user?.company?.slug).catch(() => false);
 
       return user;
     } catch (err: any) {
@@ -179,6 +186,8 @@ export const register = createAsyncThunk(
 
       const user =
         await authApi.me();
+
+      await forgetOtherCompanyCode(user?.company?.slug).catch(() => false);
 
       return user;
     } catch (err: any) {

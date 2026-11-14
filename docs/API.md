@@ -31,8 +31,8 @@ Role rules: see [ROLE_PERMISSIONS.md](ROLE_PERMISSIONS.md).
 | Method | Path | Body | Notes |
 |---|---|---|---|
 | POST | `/register` | `companyName, ownerName, email, password` | *public*. Creates company (with company code) + OWNER. Returns `{accessToken, refreshToken}` |
-| POST | `/login` | `email, password` | *public*. Per IP+e-mail limit. Generic error for wrong e-mail or password |
-| POST | `/google` | `credential` (Google ID token) | *public*. Verified server-side. 503 if `GOOGLE_CLIENT_ID` unset |
+| POST | `/login` | `email, password, companyCode?` | *public*. Per IP+e-mail limit. Generic 401 for wrong e-mail or password. With `companyCode` (login page of a company): unknown code → 400; account of another company → 403 (checked after the password) |
+| POST | `/google` | `credential` (Google ID token), `companyCode?` | *public*. Verified server-side. 503 if `GOOGLE_CLIENT_ID` unset |
 | POST | `/refresh` | `refreshToken` | *public*. Rotates the token. Re-using an old token revokes the whole session family |
 | POST | `/logout` | `refreshToken` | *public*. Revokes that session. 204 |
 | POST | `/logout-all` | — | Revokes every session of the caller. 204 |

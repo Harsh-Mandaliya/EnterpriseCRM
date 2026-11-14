@@ -3,6 +3,7 @@
 ## Controls in place (verified by automated tests unless noted)
 
 ### Authentication
+- **Company login pages**: when a company code is entered, `POST /auth/login` and `/auth/google` only sign in that company's people (403 otherwise, checked after the password so it reveals nothing to someone without it). (`tests/auth.test.ts`)
 - **Passwords**: bcrypt, cost 12. Policy 8–128 chars, uppercase + number. Login runs one bcrypt comparison even for unknown e-mails (no timing oracle) and returns the same generic error for wrong e-mail or password.
 - **Access tokens**: HS256 JWT, 15 min default. On every request the user is re-loaded from MongoDB — a deleted, suspended, or moved user is rejected immediately, and the current role (not the token's) is used.
 - **Refresh tokens**: stored only as SHA-256 hashes; rotated on every use with an atomic revoke (concurrent refreshes can't both win); a replayed old token revokes the whole session family; expired records are removed by a TTL index.

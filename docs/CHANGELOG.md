@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.3 — 2026-11-14 — Company code is enforced at sign-in
+
+### Fixed
+- **Signing in from another company's login page worked.** After loading a company code (the company's name and look shown at the top of the login page), an e-mail and password from a *different* company still signed in. The app now sends the company code with `POST /auth/login` and the server only accepts people of that company: anyone else gets **403 "This account is not part of <company>. Check the company code, or tap "Not your company?" to change it."** The check runs after the password, so a wrong password still returns the same generic 401 and nothing about other companies is revealed. An unknown code returns 400 "Company code not found". The code stays optional — without one, sign-in works as before.
+- **Google sign-in** follows the same rule (`companyCode` accepted on `POST /auth/google`): an account of another company is refused, and a new Google user on a company's login page is told to ask their admin instead of silently getting a brand-new company.
+- **Stale company on the login page**: after signing in or registering with a different company, the remembered company code is forgotten, so the next login page does not show (and enforce) the wrong company.
+- **Typed details were wiped** when loading or clearing a company code (the theme change rebuilt the screen). The e-mail and password now stay; the password is dropped from memory after a successful sign-in.
+
+### Tests
+- Backend 124 → **130** (`tests/auth.test.ts`: own company's code signs in, another company's owner and team member are refused with 403 and no tokens, wrong password with another code is still the generic 401, unknown / malformed / operator-object codes rejected, code is case-insensitive and optional).
+- App 94 → **99** (`companyCodeLogin.test.ts`: code sent trimmed and lower-case, omitted when empty; login page company kept for the same company and dropped for another after sign-in or registration; remembered code forgotten for another company).
+- Browser: Nova CRM code + SG Textiles owner → refused with the message above; "Not your company?" → same owner signs in; typed e-mail kept while loading the SG Textiles code; SG Textiles code + SG Textiles owner → dashboard.
+
 ## 1.4.2 — 2026-11-13 — Customer search, task assignment and completion record
 
 ### Fixed

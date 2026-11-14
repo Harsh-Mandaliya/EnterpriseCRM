@@ -215,10 +215,50 @@ export function assertPasswordPolicy(password: string) {
 
 const INVALID_LOGIN = 'Invalid email or password';
 
+/**
+ * Sign-in from a company's login page (company code entered).
+ * Returns the company, or rejects an unknown code.
+ */
+async function companyForCode(companyCode?: string) {
+  if (!companyCode) return null;
+
+  const company = await Company.findOne({
+    slug: companyCode.trim().toLowerCase(),
+  }).select('_id name branding.displayName');
+
+  if (!company) {
+    throw ApiError.badRequest('Company code not found');
+  }
+
+  // Same name the login page shows at the top.
+  const display = (company as { branding?: { displayName?: string | null } }).branding?.displayName;
+  return { _id: company._id, name: display?.trim() || company.name };
+}
+
+/**
+ * A company login page only signs in that company's people.
+ * Checked after the password, so it never reveals whether an
+ * e-mail exists to someone who does not know the password.
+ */
+function assertSameCompany(
+  user: { companyId: { toString(): string } },
+  company: { _id: { toString(): string }; name: string } | null,
+) {
+  if (company && user.companyId.toString() !== company._id.toString()) {
+    throw ApiError.forbidden(
+      `This account is not part of ${company.name}. Check the company code, or tap "Not your company?" to change it.`,
+    );
+  }
+}
+
 export async function login(
   email: string,
   password: string,
+  companyCode?: string,
 ) {
+  const company =
+    await companyForCode(companyCode);
+
   const normalizedEmail =
     email.trim().toLowerCase();
 
@@ -249,6 +289,8 @@ export async function login(
     throw ApiError.unauthorized(INVALID_LOGIN);
   }
 
+  assertSameCompany(user, company);
+
   if (!user.isActive) {
     throw ApiError.forbidden(
       'Your account has been deactivated',
@@ -275,7 +317,11 @@ export async function login(
  */
 export async function googleAuth(
   credential: string,
+  companyCode?: string,
 ) {
+  const codeCompany =
+    await companyForCode(companyCode);
+
   const google =
     await verifyGoogleToken(credential);
 
@@ -287,6 +333,8 @@ export async function googleAuth(
   }
 
   if (user) {
+    assertSameCompany(user, codeCompany);
+
     if (!user.isActive) {
       throw ApiError.forbidden(
         'Your account has been deactivated',
@@ -314,6 +362,14 @@ export async function googleAuth(
     await user.save();
 
     return issueTokenPair(tokenSubject(user));
+  }
+
+  // On a company's login page, Google must not quietly create a
+  // brand-new company for someone who is not on that team.
+  if (codeCompany) {
+    throw ApiError.forbidden(
+      `No account for this e-mail in ${codeCompany.name}. Ask your admin to add you.`,
+    );
   }
 
   const companyName =

@@ -14,6 +14,7 @@ import {
 } from '@/redux/slices/authSlice';
 import {
   getPreference,
+  PRE_LOGIN_KEY,
   removePreference,
   setPreference,
 } from '@/storage/secureStorage';
@@ -56,7 +57,6 @@ const initialState: BrandingState = {
   notice: null,
 };
 
-const PRE_LOGIN_KEY = 'prelogin_branding';
 
 /* ============================================================
    THUNKS
@@ -141,6 +141,12 @@ function fromMe(payload: Me | null | undefined): BrandingResponse | null {
   return payload?.branding ?? null;
 }
 
+/** Signed in to another company: the remembered login-page company no longer applies. */
+function dropOtherPreLogin(state: BrandingState, payload: Me | null | undefined) {
+  const slug = payload?.company?.slug;
+  if (slug && state.preLogin && state.preLogin.slug !== slug) state.preLogin = null;
+}
+
 const brandingSlice = createSlice({
   name: 'branding',
   initialState,
@@ -160,12 +166,15 @@ const brandingSlice = createSlice({
       /* Branding arrives with /auth/me on every sign-in. */
       .addCase(hydrateSession.fulfilled, (state, action) => {
         state.data = fromMe(action.payload);
+        dropOtherPreLogin(state, action.payload);
       })
       .addCase(login.fulfilled, (state, action) => {
         state.data = fromMe(action.payload);
+        dropOtherPreLogin(state, action.payload);
       })
       .addCase(register.fulfilled, (state, action) => {
         state.data = fromMe(action.payload);
+        dropOtherPreLogin(state, action.payload);
       })
       .addCase(logout.pending, state => {
         state.data = null;

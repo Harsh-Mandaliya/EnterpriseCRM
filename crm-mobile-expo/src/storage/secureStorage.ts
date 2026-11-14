@@ -138,3 +138,21 @@ export async function removePreference(key: string): Promise<void> {
     // Missing keys are fine.
   }
 }
+
+/** Company look remembered from the login page's company code. */
+export const PRE_LOGIN_KEY = 'prelogin_branding';
+
+/**
+ * After a successful sign-in or registration, forget a remembered
+ * company code that belongs to a different company, so the next
+ * login page does not show (and enforce) the wrong company.
+ */
+export async function forgetOtherCompanyCode(slug?: string | null): Promise<boolean> {
+  if (!slug) return false;
+  const saved = await getPreference<{ slug?: string }>(PRE_LOGIN_KEY);
+  if (saved?.slug && saved.slug !== slug) {
+    await removePreference(PRE_LOGIN_KEY);
+    return true;
+  }
+  return false;
+}

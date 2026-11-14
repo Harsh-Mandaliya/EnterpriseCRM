@@ -1,4 +1,4 @@
-import { api, PASSWORD, registerCompany, startTestServer, uniqueEmail, type TestContext } from './setup';
+import { api, createMember, PASSWORD, registerCompany, startTestServer, uniqueEmail, type TestContext } from './setup';
 
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -190,5 +190,69 @@ describe('upgrade safety', () => {
       password: PASSWORD,
     });
     assert.equal(retry.status, 201, JSON.stringify(retry.body));
+  });
+});
+
+describe('company code on the login page', () => {
+  async function companyWithCode(name: string) {
+    const owner = await registerCompany(client, name);
+    const me = await client.get('/auth/me', owner.accessToken);
+    return { ...owner, slug: me.body.company.slug as string, name };
+  }
+
+  test('a company\'s own people sign in with its code', async () => {
+    const a = await companyWithCode('Code Alpha Traders');
+    const res = await client.post('/auth/login', { email: a.email, password: PASSWORD, companyCode: a.slug });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.ok(res.body.accessToken);
+  });
+
+  test('another company\'s account is refused on this company\'s login page', async () => {
+    const a = await companyWithCode('Code Beta Traders');
+    const b = await companyWithCode('Code Gamma Traders');
+    const res = await client.post('/auth/login', { email: b.email, password: PASSWORD, companyCode: a.slug });
+    assert.equal(res.status, 403);
+    assert.match(JSON.stringify(res.body), /not part of Code Beta Traders/);
+    assert.equal(res.body.accessToken, undefined);
+    assert.equal(res.body.refreshToken, undefined);
+  });
+
+  test('a team member of another company is refused too', async () => {
+    const a = await companyWithCode('Code Delta Traders');
+    const b = await companyWithCode('Code Epsilon Traders');
+    const member = await createMember(client, b.accessToken, 'SALES');
+    const res = await client.post('/auth/login', { email: member.email, password: PASSWORD, companyCode: a.slug });
+    assert.equal(res.status, 403);
+  });
+
+  test('a wrong password with another company\'s code reveals nothing extra', async () => {
+    const a = await companyWithCode('Code Zeta Traders');
+    const b = await companyWithCode('Code Eta Traders');
+    const wrong = await client.post('/auth/login', { email: b.email, password: 'Wrong1234', companyCode: a.slug });
+    const unknown = await client.post('/auth/login', { email: uniqueEmail(), password: 'Wrong1234', companyCode: a.slug });
+    assert.equal(wrong.status, 401);
+    assert.equal(unknown.status, 401);
+    assert.equal(wrong.body.error, unknown.body.error);
+  });
+
+  test('an unknown or malformed company code is rejected', async () => {
+    const a = await companyWithCode('Code Theta Traders');
+    const unknown = await client.post('/auth/login', { email: a.email, password: PASSWORD, companyCode: 'no-such-company-xyz' });
+    assert.equal(unknown.status, 400);
+    assert.match(JSON.stringify(unknown.body), /Company code not found/);
+    const bad = await client.post('/auth/login', { email: a.email, password: PASSWORD, companyCode: 'bad code!' });
+    assert.equal(bad.status, 400);
+    const operator = await client.post('/auth/login', { email: a.email, password: PASSWORD, companyCode: { $ne: null } });
+    assert.equal(operator.status, 400);
+  });
+
+  test('the code is case-insensitive and may be left empty', async () => {
+    const a = await companyWithCode('Code Iota Traders');
+    const upper = await client.post('/auth/login', { email: a.email, password: PASSWORD, companyCode: `  ${a.slug.toUpperCase()} ` });
+    assert.equal(upper.status, 200, JSON.stringify(upper.body));
+    const empty = await client.post('/auth/login', { email: a.email, password: PASSWORD, companyCode: '' });
+    assert.equal(empty.status, 200, JSON.stringify(empty.body));
+    const none = await client.post('/auth/login', { email: a.email, password: PASSWORD });
+    assert.equal(none.status, 200);
   });
 });
