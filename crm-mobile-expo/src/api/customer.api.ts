@@ -109,11 +109,3 @@ export async function updateCustomer(
 /* ============================================================
    DELETE CUSTOMER
 ============================================================ */
-
-export async function deleteCustomer(
-  id: string,
-): Promise<void> {
-  await apiClient.delete(
-    `/customers/${id}`,
-  );
-}

@@ -3,13 +3,6 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
-export interface AuthUser {
-  userId: string;
-  companyId: string;
-  roleId: string;
-  roleName: string;
-}
-
 export interface PaginatedResponse<T> {
   items: T[];
   pagination: {
@@ -633,22 +626,6 @@ export interface LeadConversionRow {
 /* ============================================================
    DEALS REPORT
    ============================================================ */
-
-export interface DealsReport {
-  byStage: {
-    stage: string;
-    count: number;
-    totalValue: number;
-  }[];
-
-  winRate: number;
-
-  averageWonDealSize: number;
-
-  totalWon: number;
-
-  totalLost: number;
-}
 
 /* ============================================================
    TOP CUSTOMERS REPORT

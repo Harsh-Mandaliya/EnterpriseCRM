@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/client';
-import type { ConvertLeadResult, DuplicateMatch, Lead, LeadSource, LeadStatus } from '@/types';
+import type { ConvertLeadResult, Lead, LeadSource, LeadStatus } from '@/types';
 
 export async function listLeads(params?: {
   status?: LeadStatus;
@@ -77,17 +77,4 @@ export async function convertLead(
     input,
   );
   return data;
-}
-
-/** GET /leads/duplicates — matching leads/customers by e-mail or phone. */
-export async function findDuplicates(params: {
-  email?: string;
-  phone?: string;
-  excludeId?: string;
-}): Promise<DuplicateMatch[]> {
-  const { data } = await apiClient.get<{ duplicates: DuplicateMatch[] }>(
-    '/leads/duplicates',
-    { params },
-  );
-  return data.duplicates;
 }

@@ -12,7 +12,6 @@ import { getApiErrorMessage } from '@/api/client';
    back onto fields.
 ============================================================ */
 
-export type Validator<T> = (value: T[keyof T], values: T) => string | undefined;
 export type Rules<T> = Partial<{ [K in keyof T]: (value: T[K], values: T) => string | undefined }>;
 
 export function useForm<T extends Record<string, unknown>>(initial: T, rules: Rules<T>) {

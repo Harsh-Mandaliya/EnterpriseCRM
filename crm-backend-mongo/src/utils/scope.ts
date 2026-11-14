@@ -2,7 +2,6 @@ import { Types } from 'mongoose';
 
 import type { AuthUser } from '@/middlewares/auth.middleware';
 import { ApiError } from '@/utils/apiError';
-import { hasCompanyWideVisibility } from '@/utils/permissions';
 import { Customer, Invoice, Lead, Opportunity, Team, User } from '@/models';
 
 /* ============================================================
@@ -90,21 +89,6 @@ export function withScope(
   scope: Record<string, unknown>,
 ): Record<string, unknown> {
   return Object.keys(scope).length === 0 ? filter : { $and: [filter, scope] };
-}
-
-/**
- * Synchronous single-user variant (SALES / EMPLOYEE semantics).
- * Kept for callers that never involve managers' teams.
- */
-export function ownershipFilter(
-  user: AuthUser,
-  ownerField: string,
-): Record<string, unknown> {
-  if (hasCompanyWideVisibility(user.role)) {
-    return {};
-  }
-
-  return { [ownerField]: new Types.ObjectId(user.userId) };
 }
 
 /* ============================================================

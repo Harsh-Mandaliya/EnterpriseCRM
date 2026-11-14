@@ -1,4 +1,4 @@
-import React, {
+import {
   useCallback,
   useEffect,
   useState,
@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   ScrollView,
   RefreshControl,
-  Alert,
   useWindowDimensions,
 } from 'react-native';
 

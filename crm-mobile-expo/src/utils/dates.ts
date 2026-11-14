@@ -9,11 +9,6 @@ export function toDateInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** "14:30" in local time. */
-export function toTimeInput(date: Date): string {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 /** Parses "YYYY-MM-DD" (+ optional "HH:MM") as local time; null if invalid. */
 export function parseDateInput(date: string, time = '00:00'): Date | null {
   const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());

@@ -1,4 +1,3 @@
-import React from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { configureStore } from '@reduxjs/toolkit';
 import { Provider } from 'react-redux';

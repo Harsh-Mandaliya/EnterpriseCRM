@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResponsiveGrid } from '@/components/common/ResponsiveGrid';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';

@@ -2,7 +2,7 @@ import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/navigation/types';
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -16,26 +16,13 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
   TextInput,
-  ScrollView,
 } from 'react-native';
 
 import {
   listProducts,
-  createProduct,
 } from '@/api/products.api';
-
-import {
-  TextField,
-} from '@/components/common/TextField';
-
-import {
-  Button,
-} from '@/components/common/Button';
 
 import {
   colors,
@@ -69,33 +56,8 @@ export function ProductListScreen() {
   const [refreshing, setRefreshing] =
     useState(false);
 
-  const [modalVisible, setModalVisible] =
-    useState(false);
-
   const [search, setSearch] =
     useState('');
-
-  /* ==========================================================
-     FORM
-  ========================================================== */
-
-  const [name, setName] =
-    useState('');
-
-  const [price, setPrice] =
-    useState('');
-
-  const [category, setCategory] =
-    useState('');
-
-  const [stockQty, setStockQty] =
-    useState('');
-
-  const [creating, setCreating] =
-    useState(false);
-
-  const [formError, setFormError] =
-    useState<string | null>(null);
 
   /* ==========================================================
      LOAD PRODUCTS
@@ -1193,104 +1155,13 @@ const styles = createThemedStyles(() => StyleSheet.create({
      MODAL
   ========================================================== */
 
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor:
-      'rgba(15, 23, 42, 0.4)',
-  },
-
-  modalCard: {
-    maxHeight: '90%',
-    backgroundColor:
-      colors.surface,
-    borderTopLeftRadius:
-      radius.lg,
-    borderTopRightRadius:
-      radius.lg,
-    paddingHorizontal:
-      spacing.lg,
-    paddingTop:
-      spacing.lg,
-    paddingBottom:
-      spacing.md,
-  },
-
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
-    marginBottom:
-      spacing.md,
-  },
-
-  modalTitle: {
-    ...typography.h3,
-    color: colors.text,
-  },
-
-  modalSubtitle: {
-    ...typography.small,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-
-  modalClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor:
-      colors.background,
-    alignItems: 'center',
-    justifyContent:
-      'center',
-  },
-
-  modalCloseText: {
-    color: colors.textMuted,
-    fontSize: 25,
-    lineHeight: 27,
-  },
-
-  formContent: {
-    paddingBottom: 5,
-  },
-
   /* ==========================================================
      FORM ERROR
   ========================================================== */
 
-  formErrorBox: {
-    backgroundColor:
-      colors.danger + '10',
-    borderWidth: 1,
-    borderColor:
-      colors.danger + '25',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-
-  formError: {
-    ...typography.caption,
-    color: colors.danger,
-  },
-
   /* ==========================================================
      MODAL BUTTONS
   ========================================================== */
-
-  modalButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: 4,
-  },
-
-  modalButton: {
-    flex: 1,
-  },
 
   /* ==========================================================
      PRESSED

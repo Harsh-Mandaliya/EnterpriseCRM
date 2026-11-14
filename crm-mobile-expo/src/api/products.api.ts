@@ -25,7 +25,3 @@ export async function updateProduct(
   const { data } = await apiClient.patch<Product>(`/products/${id}`, input);
   return data;
 }
-
-export async function deleteProduct(id: string): Promise<void> {
-  await apiClient.delete(`/products/${id}`);
-}

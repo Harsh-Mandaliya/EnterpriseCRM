@@ -117,7 +117,6 @@ export async function adminSummary(
     const data =
       await dashboardService.getAdminSummary(
         req.user!.companyId,
-        req.user!.userId,
       );
 
     res.json(data);

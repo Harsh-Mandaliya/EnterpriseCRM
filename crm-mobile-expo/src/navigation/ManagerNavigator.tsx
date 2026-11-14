@@ -1,4 +1,3 @@
-import React from 'react';
 import { LeadFormScreen } from '@/screens/forms/LeadFormScreen';
 import { DealFormScreen } from '@/screens/forms/DealFormScreen';
 import { ProductFormScreen } from '@/screens/forms/ProductFormScreen';
@@ -95,10 +94,6 @@ import {
 import {
   colors,
 } from '@/theme/colors';
-
-import type {
-  Customer,
-} from '@/types';
 
 /* ============================================================
    NAVIGATION PARAM LIST

@@ -1,4 +1,3 @@
-import React from 'react';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { useTheme } from '@/theme/ThemeProvider';

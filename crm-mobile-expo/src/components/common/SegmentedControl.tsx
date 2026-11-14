@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useThemedStyles } from '@/theme/ThemeProvider';
 import type { Theme } from '@/theme/types';

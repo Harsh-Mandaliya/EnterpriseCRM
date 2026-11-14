@@ -4,7 +4,7 @@ import { useCan } from '@/utils/permissions';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/navigation/types';
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,

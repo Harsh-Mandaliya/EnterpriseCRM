@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme, useThemedStyles } from '@/theme/ThemeProvider';
 import type { Theme } from '@/theme/types';

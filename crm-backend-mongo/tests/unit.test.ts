@@ -5,7 +5,6 @@ import assert from 'node:assert/strict';
 
 import { computeTotals } from '@/modules/invoices/invoices.service';
 import { resolveTheme } from '@/modules/company/company.service';
-import { ownershipFilter } from '@/utils/scope';
 import { canManageUserWithRole } from '@/utils/permissions';
 import { slugify } from '@/models/Company.model';
 import type { CompanyBranding } from '@/models/Company.model';
@@ -64,23 +63,6 @@ describe('theme resolution', () => {
     const locked = resolveTheme({ name: 'Acme' }, { ...base, allowUserThemes: false }, 'SALES', prefs);
     assert.equal(locked.preset, 'emerald');
     assert.equal(locked.colorMode, 'dark');
-  });
-});
-
-describe('ownership scope', () => {
-  const userId = '64b7f0c2a1b2c3d4e5f60718';
-
-  test('company-wide roles get no extra filter', () => {
-    for (const role of ['OWNER', 'ADMIN', 'MANAGER'] as const) {
-      assert.deepEqual(ownershipFilter({ userId, companyId: 'c', role }, 'assignedToId'), {});
-    }
-  });
-
-  test('SALES and EMPLOYEE are pinned to their own records', () => {
-    for (const role of ['SALES', 'EMPLOYEE'] as const) {
-      const filter = ownershipFilter({ userId, companyId: 'c', role }, 'assignedToId');
-      assert.equal(String(filter.assignedToId), userId);
-    }
   });
 });
 

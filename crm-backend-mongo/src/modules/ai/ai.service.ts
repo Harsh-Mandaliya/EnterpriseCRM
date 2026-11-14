@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { Lead, Opportunity, Activity, Invoice, Customer } from '@/models';
+import { Lead, Activity, Invoice, Customer } from '@/models';
 import { getSalesReport } from '@/modules/reports/reports.service';
 
 /*
@@ -226,7 +226,6 @@ export async function getCustomerInsights(
   companyId: string,
   scopes: { customers: Scope; invoices: Scope } = { customers: {}, invoices: {} },
 ) {
-  const companyObjectId = new Types.ObjectId(companyId);
   const staleCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   const payingCustomerIds = await Invoice.distinct('customerId', { ...scopes.invoices, companyId, status: 'PAID' });

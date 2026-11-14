@@ -1,4 +1,3 @@
-import React from 'react';
 import { TaskFormScreen } from '@/screens/forms/TaskFormScreen';
 import { EventFormScreen } from '@/screens/forms/EventFormScreen';
 import { AnalyticsScreen } from '@/screens/analytics/AnalyticsScreen';

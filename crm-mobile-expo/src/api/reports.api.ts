@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/client';
-import type { SalesReportRow, LeadConversionRow, DealsReport, TopCustomerRow } from '@/types';
+import type { SalesReportRow, LeadConversionRow, TopCustomerRow } from '@/types';
 
 export async function getSalesReport(months?: number): Promise<SalesReportRow[]> {
   const { data } = await apiClient.get<SalesReportRow[]>('/reports/sales', { params: { months } });
@@ -8,11 +8,6 @@ export async function getSalesReport(months?: number): Promise<SalesReportRow[]>
 
 export async function getLeadConversionReport(): Promise<LeadConversionRow[]> {
   const { data } = await apiClient.get<LeadConversionRow[]>('/reports/leads');
-  return data;
-}
-
-export async function getDealsReport(): Promise<DealsReport> {
-  const { data } = await apiClient.get<DealsReport>('/reports/deals');
   return data;
 }
 

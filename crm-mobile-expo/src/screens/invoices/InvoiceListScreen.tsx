@@ -1,7 +1,7 @@
 import { useRefreshOnFocus } from '@/hooks/useRefreshOnFocus';
 import { Fab } from '@/components/common/Fab';
 import { useCan } from '@/utils/permissions';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -497,10 +497,6 @@ const styles = createThemedStyles(() => StyleSheet.create({
     borderColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  payButtonDisabled: {
-    opacity: 0.6,
   },
 
   payButtonText: {

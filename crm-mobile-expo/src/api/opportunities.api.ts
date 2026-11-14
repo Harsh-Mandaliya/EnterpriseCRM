@@ -6,11 +6,6 @@ export async function listOpportunities(): Promise<Opportunity[]> {
   return data;
 }
 
-export async function getOpportunity(id: string): Promise<Opportunity> {
-  const { data } = await apiClient.get<Opportunity>(`/opportunities/${id}`);
-  return data;
-}
-
 export async function createOpportunity(input: {
   title: string;
   amount: number;
@@ -52,8 +47,4 @@ export async function updateOpportunityStage(
     { stage },
   );
   return data;
-}
-
-export async function deleteOpportunity(id: string): Promise<void> {
-  await apiClient.delete(`/opportunities/${id}`);
 }

@@ -1,4 +1,3 @@
-import React from 'react';
 import { LeadFormScreen } from '@/screens/forms/LeadFormScreen';
 import { DealFormScreen } from '@/screens/forms/DealFormScreen';
 import { ProductFormScreen } from '@/screens/forms/ProductFormScreen';
@@ -140,8 +139,8 @@ import { TeamsScreen } from '@/screens/teams/TeamsScreen';
 ============================================================ */
 
 import {
-  UserListScreen,
-} from '@/screens/users/UserListScreen';
+  UserManagementScreen,
+} from '@/screens/users/UserManagementScreen';
 
 import { colors } from '@/theme/colors';
 /* ============================================================
@@ -212,7 +211,7 @@ export function AdminNavigator() {
       <Stack.Screen
         name="UserManagement"
         component={
-          UserListScreen
+          UserManagementScreen
         }
         options={{
           title: 'User Management',

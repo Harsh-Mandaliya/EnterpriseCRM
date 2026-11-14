@@ -1112,7 +1112,6 @@ export async function getEmployeeSummary(
 
 export async function getAdminSummary(
   companyId: string,
-  userId: string,
 ) {
   // Aggregations don't cast strings to ObjectId; a string companyId
   // in $match silently matches nothing (open deals were always 0).

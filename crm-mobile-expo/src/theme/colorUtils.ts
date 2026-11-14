@@ -44,11 +44,6 @@ export function mix(a: string, b: string, amount: number): string {
   ]);
 }
 
-export function withAlpha(hex: string, alpha: number): string {
-  const [r, g, b] = toRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 /** WCAG relative luminance. */
 export function luminance(hex: string): number {
   const [r, g, b] = toRgb(hex).map(channel => {

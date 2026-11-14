@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/client';
-import type { Invoice, InvoiceStatus, InvoiceLineItem } from '@/types';
+import type { Invoice, InvoiceStatus } from '@/types';
 
 export async function listInvoices(params?: { status?: InvoiceStatus; customerId?: string }): Promise<Invoice[]> {
   const { data } = await apiClient.get<Invoice[]>('/invoices', { params });
@@ -27,13 +27,4 @@ export async function createInvoice(input: {
 }): Promise<Invoice> {
   const { data } = await apiClient.post<Invoice>('/invoices', input);
   return data;
-}
-
-export async function updateInvoiceStatus(id: string, status: InvoiceStatus): Promise<Invoice> {
-  const { data } = await apiClient.patch<Invoice>(`/invoices/${id}/status`, { status });
-  return data;
-}
-
-export async function deleteInvoice(id: string): Promise<void> {
-  await apiClient.delete(`/invoices/${id}`);
 }

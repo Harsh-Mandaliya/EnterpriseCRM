@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.4 — 2026-11-14 — Dead code removed
+
+### Fixed
+- **Admin's User Management showed fake people.** Admins were sent to an old screen with four hard-coded sample users (not the real team). Admin now uses the same real User Management screen as the Owner; the old screen is deleted.
+
+### Removed (nothing used it; −1,229 lines, −1 package)
+- 57 unused `React` imports (React 19 does not need them for JSX) and other unused imports in the app.
+- Products screen: the old in-page "add product" form state and its 12 styles (products are added on their own form screen).
+- Unused API helpers in the app: `deleteCustomer`, `updateInvoiceStatus`, `deleteInvoice`, `findDuplicates`, `getOpportunity`, `deleteOpportunity`, `deleteProduct`, `getDealsReport`, `updateUser`; unused types `AuthUser`, `DealsReport`, `Validator`; unused `withAlpha`, `toTimeInput`; one unused invoice style. The server endpoints themselves are unchanged.
+- Backend: `ownershipFilter` (unused, and out of date — it treated Managers as company-wide) with its 2 tests; an unused import, variable and parameter in AI insights and the admin dashboard.
+- App dependency `@react-navigation/bottom-tabs` (never imported).
+
+### Checked
+- `tsc --noUnusedLocals --noUnusedParameters` is clean in both projects; no exported function, type or style is left that nothing uses.
+- Backend **128 passed** (124 + 6 company-code − 2 removed), app **99 passed**, ESLint clean, backend build OK, two-company role & isolation script **243/243**.
+- Browser: Admin → User Management lists the real 6 SG Textiles members; Owner → Products lists the 5 products; sign-in works.
+
 ## 1.4.3 — 2026-11-14 — Company code is enforced at sign-in
 
 ### Fixed

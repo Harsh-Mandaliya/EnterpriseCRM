@@ -16,14 +16,6 @@ export async function createUser(input: {
   return data;
 }
 
-export async function updateUser(
-  id: string,
-  input: Partial<{ name: string; role: Role }>,
-): Promise<TeamUser> {
-  const { data } = await apiClient.patch<TeamUser>(`/users/${id}`, input);
-  return data;
-}
-
 export async function deleteUser(id: string): Promise<void> {
   await apiClient.delete(`/users/${id}`);
 }
