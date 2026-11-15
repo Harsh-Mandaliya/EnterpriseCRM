@@ -255,3 +255,28 @@ export async function resetPassword(
     return next(err);
   }
 }
+
+/* ============================================================
+   MY ACCOUNT
+============================================================ */
+
+export async function updateMe(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    return res.status(200).json(await authService.updateMe(req.user!.userId, req.body));
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export async function changePassword(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    const tokens = await authService.changePassword(
+      req.user!.userId,
+      String(req.body.currentPassword),
+      String(req.body.newPassword),
+    );
+    return res.status(200).json(tokens);
+  } catch (err) {
+    return next(err);
+  }
+}

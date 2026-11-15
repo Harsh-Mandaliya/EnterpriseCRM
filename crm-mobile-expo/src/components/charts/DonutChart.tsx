@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
 import { motion, useReducedMotion } from '@/components/motion/motion';
@@ -34,6 +34,9 @@ export function DonutChart({
   const reduced = useReducedMotion();
   const sweep = useRef(new Animated.Value(reduced ? 1 : 0)).current;
   const [progress, setProgress] = useState(reduced ? 1 : 0);
+  // Slice under the mouse / finger (via its legend entry or the ring itself).
+  const [active, setActive] = useState<string | null>(null);
+  const activeSlice = data.find(d => d.label === active);
 
   const total = data.reduce((sum, d) => sum + d.value, 0);
   const radius = (size - thickness) / 2;
@@ -87,7 +90,10 @@ export function DonutChart({
                       cy={size / 2}
                       r={radius}
                       stroke={slice.color}
-                      strokeWidth={thickness}
+                      strokeWidth={active === slice.label ? thickness + 6 : thickness}
+                      opacity={active && active !== slice.label ? 0.3 : 1}
+                      onPressIn={() => setActive(slice.label)}
+                      onPressOut={() => setActive(null)}
                       strokeDasharray={`${Math.max(0, length - 2)} ${circumference}`}
                       strokeDashoffset={-offset}
                       strokeLinecap="round"
@@ -101,20 +107,38 @@ export function DonutChart({
           </G>
         </Svg>
         <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="none">
-          {centerValue ? <Text style={[styles.centerValue, { color: theme.colors.text }]}>{centerValue}</Text> : null}
-          {centerLabel ? <Text style={[styles.centerLabel, { color: theme.colors.textMuted }]}>{centerLabel}</Text> : null}
+          {activeSlice ? (
+            <>
+              <Text style={[styles.centerValue, { color: activeSlice.color }]}>{total > 0 ? Math.round((activeSlice.value / total) * 100) : 0}%</Text>
+              <Text style={[styles.centerLabel, { color: theme.colors.textMuted }]} numberOfLines={1}>
+                {activeSlice.label} · {activeSlice.value}
+              </Text>
+            </>
+          ) : (
+            <>
+              {centerValue ? <Text style={[styles.centerValue, { color: theme.colors.text }]}>{centerValue}</Text> : null}
+              {centerLabel ? <Text style={[styles.centerLabel, { color: theme.colors.textMuted }]}>{centerLabel}</Text> : null}
+            </>
+          )}
         </View>
       </View>
 
       {showLegend ? (
         <View style={styles.legend}>
           {data.map(slice => (
-            <View key={slice.label} style={styles.legendItem}>
+            <Pressable
+              key={slice.label}
+              onHoverIn={() => setActive(slice.label)}
+              onHoverOut={() => setActive(null)}
+              onPressIn={() => setActive(slice.label)}
+              onPressOut={() => setActive(null)}
+              style={[styles.legendItem, active === slice.label && { backgroundColor: theme.colors.surfaceAlt }, { opacity: active && active !== slice.label ? 0.45 : 1 }]}
+            >
               <View style={[styles.dot, { backgroundColor: slice.color }]} />
-              <Text style={[styles.legendText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              <Text style={[styles.legendText, { color: active === slice.label ? theme.colors.text : theme.colors.textSecondary }]} numberOfLines={1}>
                 {slice.label} · {slice.value}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : null}
@@ -127,8 +151,8 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   centerValue: { fontSize: 22, fontWeight: '800' },
   centerLabel: { fontSize: 11, marginTop: 2 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 12 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4, marginTop: 12 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: 12 },
 });

@@ -155,3 +155,34 @@ export const resetPasswordSchema = z.object({
       .regex(/[0-9]/, 'Needs a number'),
   }),
 });
+
+/* ============================================================
+   MY ACCOUNT
+============================================================ */
+
+export const updateMeSchema = z.object({
+  body: z
+    .object({
+      name: z.string().trim().min(2, 'Name is too short').max(80).optional(),
+      phone: z.string().trim().regex(/^[0-9+() -]{7,20}$/, 'Enter a valid phone number').or(z.literal('')).optional(),
+      jobTitle: z.string().trim().max(60).optional(),
+      email: z.string().trim().toLowerCase().email('Enter a valid email').optional(),
+      // Required only when the sign-in e-mail changes.
+      currentPassword: z.string().max(128).optional(),
+    })
+    .strict(),
+});
+
+export const changePasswordSchema = z.object({
+  body: z
+    .object({
+      currentPassword: z.string().min(1, 'Current password is required').max(128),
+      newPassword: z
+        .string()
+        .min(8, 'At least 8 characters')
+        .max(128, 'At most 128 characters')
+        .regex(/[A-Z]/, 'Needs an uppercase letter')
+        .regex(/[0-9]/, 'Needs a number'),
+    })
+    .strict(),
+});

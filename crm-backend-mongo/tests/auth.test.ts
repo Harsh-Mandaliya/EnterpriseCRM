@@ -256,3 +256,61 @@ describe('company code on the login page', () => {
     assert.equal(none.status, 200);
   });
 });
+
+describe('my account', () => {
+  test('a user updates their own name, phone and job title — never role or company', async () => {
+    const owner = await registerCompany(client, 'Account Alpha Traders');
+    const member = await createMember(client, owner.accessToken, 'EMPLOYEE');
+
+    const ok = await client.patch('/auth/me', { name: 'Dhruv J.', phone: '+91 98765 43210', jobTitle: 'Store executive' }, member.accessToken);
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal(ok.body.name, 'Dhruv J.');
+    assert.equal(ok.body.phone, '+91 98765 43210');
+    assert.equal(ok.body.jobTitle, 'Store executive');
+    assert.equal(ok.body.role, 'EMPLOYEE');
+
+    // Privilege fields are rejected outright, not silently ignored.
+    for (const body of [{ role: 'OWNER' }, { companyId: '64b7f0c2a1b2c3d4e5f60718' }, { isActive: false }]) {
+      assert.equal((await client.patch('/auth/me', body, member.accessToken)).status, 400);
+    }
+    assert.equal((await client.get('/auth/me', member.accessToken)).body.role, 'EMPLOYEE');
+    assert.equal((await client.patch('/auth/me', { name: 'X' })).status, 401);
+    assert.equal((await client.patch('/auth/me', { phone: 'not a phone' }, member.accessToken)).status, 400);
+  });
+
+  test('changing the sign-in e-mail needs the current password and a free address', async () => {
+    const owner = await registerCompany(client, 'Account Beta Traders');
+    const other = await registerCompany(client, 'Account Gamma Traders');
+    const next = uniqueEmail('renamed');
+
+    assert.equal((await client.patch('/auth/me', { email: next }, owner.accessToken)).status, 403);
+    assert.equal((await client.patch('/auth/me', { email: next, currentPassword: 'Wrong1234' }, owner.accessToken)).status, 403);
+    assert.equal((await client.patch('/auth/me', { email: other.email, currentPassword: PASSWORD }, owner.accessToken)).status, 409);
+
+    const ok = await client.patch('/auth/me', { email: next, currentPassword: PASSWORD }, owner.accessToken);
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal((await client.post('/auth/login', { email: next, password: PASSWORD })).status, 200);
+    assert.equal((await client.post('/auth/login', { email: owner.email, password: PASSWORD })).status, 401);
+  });
+
+  test('change password: checks the current one, applies the policy, ends other sessions', async () => {
+    const owner = await registerCompany(client, 'Account Delta Traders');
+    const otherDevice = await client.post('/auth/login', { email: owner.email, password: PASSWORD });
+    const newPassword = 'Changed@98765';
+
+    assert.equal((await client.post('/auth/change-password', { currentPassword: 'Wrong1234', newPassword }, owner.accessToken)).status, 403);
+    assert.equal((await client.post('/auth/change-password', { currentPassword: PASSWORD, newPassword: 'weak' }, owner.accessToken)).status, 400);
+    assert.equal((await client.post('/auth/change-password', { currentPassword: PASSWORD, newPassword: PASSWORD }, owner.accessToken)).status, 400);
+    assert.equal((await client.post('/auth/change-password', { currentPassword: PASSWORD, newPassword })).status, 401);
+
+    const changed = await client.post('/auth/change-password', { currentPassword: PASSWORD, newPassword }, owner.accessToken);
+    assert.equal(changed.status, 200, JSON.stringify(changed.body));
+    assert.ok(changed.body.accessToken && changed.body.refreshToken);
+
+    // Old password is dead, the other device's session is revoked, this device's new one works.
+    assert.equal((await client.post('/auth/login', { email: owner.email, password: PASSWORD })).status, 401);
+    assert.equal((await client.post('/auth/login', { email: owner.email, password: newPassword })).status, 200);
+    assert.equal((await client.post('/auth/refresh', { refreshToken: otherDevice.body.refreshToken })).status, 401);
+    assert.equal((await client.post('/auth/refresh', { refreshToken: changed.body.refreshToken })).status, 200);
+  });
+});

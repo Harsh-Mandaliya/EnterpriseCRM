@@ -138,6 +138,8 @@ export function CalendarScreen({ navigation }: Props) {
     };
   }, [events]);
 
+  // Employees have no customer or lead screens to open.
+  const canOpenRecords = me?.role !== 'EMPLOYEE';
   const canDelete = (e: CalendarEvent) => me?.role === 'OWNER' || me?.role === 'ADMIN' || me?.role === 'MANAGER' || e.createdById === me?.id;
 
   const remove = async (e: CalendarEvent) => {
@@ -228,7 +230,12 @@ export function CalendarScreen({ navigation }: Props) {
   }
 
   // page gutter both sides + card padding 12 + six 2px gaps between seven cells
-  const cell = Math.floor((Math.min(width, layout.maxWidth) - 2 * layout.gutter - 12 - 12) / 7);
+  // Fill the content column on phones; on wide screens cells stop growing at 96.
+  const cell = Math.min(96, Math.floor((Math.min(width, layout.maxWidth) - 2 * layout.gutter - 12 - 12) / 7));
+  // Exactly seven cells and six 2px gaps per row, whatever the card's width.
+  const gridWidth = { width: 7 * cell + 12, alignSelf: 'center' as const };
+  // Square on phones; on wide screens cells stay short so the month fits without scrolling.
+  const cellHeight = Math.min(cell, 54);
   const selectedKey = toDateInput(selected);
   const dayEvents = byDay.get(selectedKey) ?? [];
   const title =
@@ -309,14 +316,14 @@ export function CalendarScreen({ navigation }: Props) {
                 <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
               </PressableScale>
             </View>
-            <View style={styles.weekHead}>
+            <View style={[styles.weekHead, gridWidth]}>
               {WEEKDAYS.map(d => (
                 <Text key={d} style={[styles.weekHeadText, { width: cell }]}>
                   {d}
                 </Text>
               ))}
             </View>
-            <View style={styles.grid}>
+            <View style={[styles.grid, gridWidth]}>
               {(mode === 'month' ? monthGrid(cursor.getFullYear(), cursor.getMonth()) : weekDays(cursor)).map(d => {
                 const key = toDateInput(d);
                 const list = byDay.get(key) ?? [];
@@ -332,7 +339,7 @@ export function CalendarScreen({ navigation }: Props) {
                     accessibilityLabel={`${d.toDateString()}, ${list.length} events`}
                     style={[
                       styles.day,
-                      { width: cell, height: mode === 'month' ? cell + 6 : cell + 30 },
+                      { width: cell, height: mode === 'month' ? cellHeight + 6 : cellHeight + 30 },
                       isSel && { backgroundColor: theme.colors.primary },
                       !isSel && isToday && { borderColor: theme.colors.primary, borderWidth: 1.5 },
                     ]}
@@ -406,10 +413,10 @@ export function CalendarScreen({ navigation }: Props) {
               <InfoRow icon="hourglass-outline" label="Duration" value={`${Math.round((new Date(detail.endAt).getTime() - new Date(detail.startAt).getTime()) / 60000)} min`} />
               <InfoRow icon="location-outline" label="Where" value={detail.location} />
               {detail.customerId ? (
-                <InfoRow icon="business-outline" label="Customer" value={detail.customerId.name} onPress={() => { setDetail(null); navigation.navigate('CustomerDetail', { customerId: detail.customerId!.id, customerName: detail.customerId!.name }); }} />
+                <InfoRow icon="business-outline" label="Customer" value={detail.customerId.name} onPress={!canOpenRecords ? undefined : () => { setDetail(null); navigation.navigate('CustomerDetail', { customerId: detail.customerId!.id, customerName: detail.customerId!.name }); }} />
               ) : null}
               {detail.leadId ? (
-                <InfoRow icon="person-outline" label="Lead" value={detail.leadId.name} onPress={() => { setDetail(null); navigation.navigate('LeadDetail', { leadId: detail.leadId!.id, leadName: detail.leadId!.name }); }} />
+                <InfoRow icon="person-outline" label="Lead" value={detail.leadId.name} onPress={!canOpenRecords ? undefined : () => { setDetail(null); navigation.navigate('LeadDetail', { leadId: detail.leadId!.id, leadName: detail.leadId!.name }); }} />
               ) : null}
               {detail.opportunityId ? <InfoRow icon="git-branch-outline" label="Deal" value={detail.opportunityId.title} /> : null}
               <InfoRow icon="people-outline" label="Attendees" value={detail.attendeeIds.map(a => a.name).join(', ') || 'Only the organiser'} />

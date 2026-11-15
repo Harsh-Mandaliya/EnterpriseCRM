@@ -831,6 +831,8 @@ export function ProfileScreen({
 
         {(
           [
+            { route: 'AccountDetails', icon: 'person-circle-outline', title: 'Account details', subtitle: 'Your name, phone, job title and sign-in e-mail', show: true },
+            { route: 'ChangePassword', icon: 'lock-closed-outline', title: 'Change password', subtitle: 'Signs out your other devices', show: profile?.authProvider !== 'GOOGLE' },
             { route: 'Reports', icon: 'bar-chart-outline', title: 'Reports & analysis', subtitle: 'Sales, money owed, team — download as PDF', show: true },
             { route: 'AiCenter', icon: 'analytics-outline', title: 'AI Center', subtitle: 'Daily briefing, deal win chances, lead scores', show: true },
             { route: 'TeamActivity', icon: 'people-circle-outline', title: profile?.role === 'SALES' || profile?.role === 'EMPLOYEE' ? 'My activity' : 'Team activity', subtitle: 'Who did what — and what is still pending', show: true },

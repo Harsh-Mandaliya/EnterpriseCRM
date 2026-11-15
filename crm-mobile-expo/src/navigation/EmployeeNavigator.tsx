@@ -4,7 +4,8 @@ import { AnalyticsScreen } from '@/screens/analytics/AnalyticsScreen';
 import { AiCenterScreen } from '@/screens/ai/AiCenterScreen';
 import { ReportsScreen } from '@/screens/reports/ReportsScreen';
 import { TeamActivityScreen } from '@/screens/team/TeamActivityScreen';
-import { InvoiceDetailScreen } from '@/screens/invoices/InvoiceDetailScreen';
+import { AccountDetailsScreen } from '@/screens/settings/AccountDetailsScreen';
+import { ChangePasswordScreen } from '@/screens/settings/ChangePasswordScreen';
 
 import type { AppStackParamList } from '@/navigation/types';
 
@@ -16,9 +17,7 @@ import {
   EmployeeDashboardScreen,
 } from '@/screens/dashboard/EmployeeDashboardScreen';
 
-import { CustomerListScreen } from '@/screens/customers/CustomerListScreen';
-import { CustomerDetailScreen } from '@/screens/customers/CustomerDetailScreen';
-import { CustomerFormScreen } from '@/screens/customers/CustomerFormScreen';
+import { ProductListScreen } from '@/screens/products/ProductListScreen';
 
 import { ActivitiesScreen } from '@/screens/activities/ActivitiesScreen';
 
@@ -77,25 +76,8 @@ export function EmployeeNavigator() {
         }
       />
 
-      <Stack.Screen
-        name="CustomerList"
-        component={CustomerListScreen}
-        options={{ headerShown: false }}
-      />
-
-      <Stack.Screen
-        name="CustomerDetail"
-        component={CustomerDetailScreen}
-        options={{ headerShown: false }}
-      />
-
-      <Stack.Screen
-        name="CustomerForm"
-        component={
-          CustomerFormScreen
-        }
-        options={{ headerShown: false }}
-      />
+      {/* No customer, lead, deal or invoice screens: those belong to sales. The price list is view-only. */}
+      <Stack.Screen name="ProductList" component={ProductListScreen} options={{ headerShown: false }} />
 
       <Stack.Screen
         name="Activities"
@@ -170,11 +152,8 @@ export function EmployeeNavigator() {
       />
 
       {/* v1.4 */}
-      <Stack.Screen
-        name="InvoiceDetail"
-        component={InvoiceDetailScreen}
-        options={{ headerShown: false }}
-      />
+      <Stack.Screen name="AccountDetails" component={AccountDetailsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="TeamActivity"
         component={TeamActivityScreen}

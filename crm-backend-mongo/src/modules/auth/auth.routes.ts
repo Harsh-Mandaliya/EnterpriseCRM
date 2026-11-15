@@ -18,6 +18,8 @@ import {
   logoutSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  updateMeSchema,
+  changePasswordSchema,
 } from '@/modules/auth/auth.validation';
 
 /* ============================================================
@@ -243,6 +245,12 @@ router.get(
   requireAuth,
   authController.me,
 );
+
+// Own account only: name, phone, job title, e-mail (needs password).
+router.patch('/me', requireAuth, validate(updateMeSchema), authController.updateMe);
+
+// Same limiter as login: the current password is being guessed against.
+router.post('/change-password', loginLimiter, requireAuth, validate(changePasswordSchema), authController.changePassword);
 
 /* ============================================================
    EXPORT

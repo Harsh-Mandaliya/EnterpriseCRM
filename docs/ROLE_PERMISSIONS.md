@@ -72,3 +72,8 @@ Legend: ✅ allowed · 🔍 within scope (above) · ❌ denied (403, or 404 for 
 - References in request bodies (`customerId`, `assignedToId`, `ownerId`, `leadId`, `attendeeIds`, team `managerId`/`memberIds`, customer `sharedWithIds`) must belong to the caller's company (400 otherwise).
 - Duplicate checks report records outside your scope only as "owned by a colleague" — no id or name.
 - Team managers must have the MANAGER or ADMIN role.
+
+## v1.5 — account and Employee scope
+
+- **Every role** can edit its own name, phone, job title and e-mail, and change its own password. Nobody can change their own role, company or active state.
+- **Employee** works on tasks, calendar and alerts and can view the product list, team, own activity and reports. The app has no customer, lead, deal or invoice screens for an Employee, and the server returns none of those records to them.

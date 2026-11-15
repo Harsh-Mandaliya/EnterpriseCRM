@@ -34,6 +34,9 @@ export interface Me {
   email: string;
   role: Role;
   avatar?: string | null;
+  phone?: string;
+  jobTitle?: string;
+  lastLoginAt?: string | null;
   companyId: string;
   createdAt: string;
   updatedAt?: string;

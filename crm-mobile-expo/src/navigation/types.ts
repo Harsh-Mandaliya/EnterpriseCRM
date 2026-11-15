@@ -98,4 +98,7 @@ export type AppStackParamList = {
   /** Team activity & performance; with a target it shows that record's history. */
   TeamActivity: { targetType?: 'Lead' | 'Opportunity' | 'Customer' | 'Invoice'; targetId?: string; title?: string } | undefined;
   CompanyBilling: undefined;
+  /* v1.5 — every role */
+  AccountDetails: undefined;
+  ChangePassword: undefined;
 };

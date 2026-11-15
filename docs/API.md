@@ -38,7 +38,9 @@ Role rules: see [ROLE_PERMISSIONS.md](ROLE_PERMISSIONS.md).
 | POST | `/logout-all` | — | Revokes every session of the caller. 204 |
 | POST | `/forgot-password` | `email` | *public*. Always 202 |
 | POST | `/reset-password` | `token, password` | *public*. Single-use token, 30 min. Ends all sessions |
-| GET | `/me` | — | Profile + `company` + `branding` (see below) + `preferences` |
+| GET | `/me` | — | Profile (incl. `phone`, `jobTitle`, `lastLoginAt`) + `company` + `branding` (see below) + `preferences` |
+| PATCH | `/me` | `name?, phone?, jobTitle?, email?, currentPassword?` | Own account only. `email` change needs `currentPassword` (403) and a free address (409). Any other field (role, companyId, isActive…) → 400 |
+| POST | `/change-password` | `currentPassword, newPassword` | Wrong current password → 403. Ends every other session; returns a fresh `{accessToken, refreshToken}` |
 
 Password policy: 8–128 characters, at least one uppercase letter and one number.
 

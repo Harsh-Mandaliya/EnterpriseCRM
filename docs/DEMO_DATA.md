@@ -8,6 +8,7 @@ so every record passed the same validation and permission checks as real use.
 cd crm-backend-mongo
 npm run dev            # API on :4000
 npm run seed:demo      # in a second terminal; skips a company that already exists
+npm run seed:more      # optional: a lot more records for every role (safe to run twice)
 ```
 
 > Local testing only. Change these passwords (or delete the companies) before any shared or production use.
@@ -81,3 +82,11 @@ Team **South Enterprise** (Bengaluru & Chennai) — manager Kabir; members Anany
 
 Products are shared company-wide. Since v1.4 **tasks and calendar follow the hierarchy** too — e.g. SG: Owner/Admin 7 tasks, Pari (team) 6, Ritik 4, Neha 1, Dhruv 2; calendar: company events from the owner/admin are visible to everyone, other events only to their creator's hierarchy and invited attendees.
 Nothing from one company may ever appear for the other.
+
+## Extra data (`npm run seed:more`)
+
+Adds to **each** company: 4 products, 8 customers, 10 leads (one converted), 8 deals across every stage, 6 invoices (paid, part-paid and overdue; UPI / card / cash / bank), 21 tasks and 8 calendar events, plus a job title and phone for everyone.
+
+The tasks are there to try the Employee side and assignment: ten are assigned to the Employee by the Owner, Admin and Manager (six already completed — four on time, two late — so *My score* has real numbers), four are **general team tasks** anyone can pick up (one already completed by the Employee), and the rest belong to sales and managers.
+
+After it, SG Textiles has roughly: 16 customers, 18 leads, 17 deals, 9 products, 12 invoices, 7 payments, 28 tasks and 12 events for the Owner/Admin; the Manager sees 10 / 11 / 11 customers / leads / deals, the two sales reps 7 / 8 / 8 and 6 / 7 / 6, and the Employee no customers, leads, deals or invoices — 16 tasks and 7 events.

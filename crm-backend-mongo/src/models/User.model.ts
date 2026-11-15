@@ -47,6 +47,10 @@ export interface UserDoc {
 
   avatar?: string;
 
+  phone?: string;
+
+  jobTitle?: string;
+
   role: RoleName;
 
   isActive: boolean;
@@ -157,6 +161,10 @@ const userSchema =
         required: false,
         trim: true,
       },
+
+      phone: { type: String, required: false, trim: true, maxlength: 20 },
+
+      jobTitle: { type: String, required: false, trim: true, maxlength: 60 },
 
       /* ------------------------------------------------------
          ROLE

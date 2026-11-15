@@ -63,3 +63,21 @@ export async function resetPassword(
     password,
   });
 }
+
+/** PATCH /auth/me — own details only. Changing the e-mail needs currentPassword. */
+export async function updateMe(input: {
+  name?: string;
+  phone?: string;
+  jobTitle?: string;
+  email?: string;
+  currentPassword?: string;
+}): Promise<Me> {
+  const { data } = await apiClient.patch<Me>('/auth/me', input);
+  return data;
+}
+
+/** Ends every other session; returns a fresh token pair for this device. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<AuthTokens> {
+  const { data } = await apiClient.post<AuthTokens>('/auth/change-password', { currentPassword, newPassword });
+  return data;
+}

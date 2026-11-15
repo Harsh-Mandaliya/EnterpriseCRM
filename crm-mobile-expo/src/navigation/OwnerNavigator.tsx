@@ -8,6 +8,8 @@ import { PipelineScreen } from '@/screens/pipeline/PipelineScreen';
 import { AnalyticsScreen } from '@/screens/analytics/AnalyticsScreen';
 import { CompanyBillingScreen } from '@/screens/settings/CompanyBillingScreen';
 import { TeamActivityScreen } from '@/screens/team/TeamActivityScreen';
+import { AccountDetailsScreen } from '@/screens/settings/AccountDetailsScreen';
+import { ChangePasswordScreen } from '@/screens/settings/ChangePasswordScreen';
 import { InvoiceDetailScreen } from '@/screens/invoices/InvoiceDetailScreen';
 
 import type { AppStackParamList } from '@/navigation/types';
@@ -502,6 +504,8 @@ export function OwnerNavigator() {
         component={InvoiceDetailScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen name="AccountDetails" component={AccountDetailsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="TeamActivity"
         component={TeamActivityScreen}

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.0 — 2026-11-16 — Account details, Employee workspace, chart hover, more demo data
+
+### Added
+- **Account details (every role)**: Profile → *Account details* edits your own name, phone, job title and sign-in e-mail (`PATCH /auth/me`). Changing the e-mail needs your current password and a free address. Role, company and active state are refused here — only an Owner or Admin changes those. Profile → *Change password* (`POST /auth/change-password`) checks the current password, applies the password policy, signs out your other devices and keeps this one signed in.
+- **Employee workspace**: the Employee home is rebuilt as "my work" — open / due today / overdue / done this week, a *Do next* list (own tasks plus open team tasks, most urgent first, with a Done button), *My score* (on-time rate, done on time / late / open / overdue), tasks completed per day for the last 7 days, my schedule, and quick access to Tasks, Calendar, Alerts, Products (view only), My team, My activity, Reports and Account. Employees no longer have customer, lead, deal or invoice screens — those belong to sales (Business Development Executives).
+- **Chart hover**: bar, donut and funnel charts react to the mouse (web) and to touch — the item under the pointer is highlighted with its value, the rest dim. Used in Analytics, Reports, AI Center and the Employee home.
+- **Pipeline by stage**: the stage card now lists all six stages with count, value, share of open value, win chance and forecast (Won shows the win rate); rows highlight on hover and a tap opens that stage's deals.
+- **More demo data** (`npm run seed:more`, after `seed:demo`): per company +4 products, +8 customers, +10 leads (1 converted), +8 deals, +6 invoices with payments by UPI / card / cash / bank, +21 tasks (assigned by Owner / Admin / Manager to the Employee, general team tasks, some done on time and some late) and +8 calendar events with attendees. Everyone also gets a job title and phone. Created through the API as the right user; safe to run twice.
+
+### Fixed
+- **Calendar was huge on the browser**: day cells were sized for the full page width and were square, so a month was taller than the screen. Cells now stop growing on wide screens and stay short; the grid is always exactly seven columns.
+
+### Tests
+- Backend 128 → **131** (`tests/auth.test.ts`: own details only and privilege fields refused; e-mail change needs password and a free address; change password checks, policy and other sessions ended).
+- App 99 → **104** (`employee.test.ts`: open / due / overdue counts, on-time rate incl. team tasks picked up, 7-day chart, "do next" order).
+- Role & isolation script 243/243 and the per-role module matrix 335/335 on the larger data set. Browser: Employee home, chart hover, calendar month, account save, pipeline by stage.
+
 ## 1.4.4 — 2026-11-14 — Dead code removed
 
 ### Fixed

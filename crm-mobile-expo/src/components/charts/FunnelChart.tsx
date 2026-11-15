@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { motion, useReducedMotion } from '@/components/motion/motion';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -19,23 +19,32 @@ export interface FunnelStep {
 export function FunnelChart({ steps }: { steps: FunnelStep[] }) {
   const theme = useTheme();
   const max = Math.max(1, ...steps.map(s => s.value));
+  const [active, setActive] = useState<number | null>(null);
 
   return (
     <View
       accessible
       accessibilityRole="image"
       accessibilityLabel={`Funnel. ${steps.map(s => `${s.label}: ${s.value}`).join(', ')}`}
-      style={{ gap: 10 }}
+      style={{ gap: 2 }}
     >
       {steps.map((step, index) => {
         const next = steps[index + 1];
         const conversion = next && step.value > 0 ? Math.round((next.value / step.value) * 100) : null;
         return (
-          <View key={step.label}>
+          <Pressable
+            key={step.label}
+            onHoverIn={() => setActive(index)}
+            onHoverOut={() => setActive(null)}
+            onPressIn={() => setActive(index)}
+            onPressOut={() => setActive(null)}
+            style={[styles.row, active === index && { backgroundColor: theme.colors.surfaceAlt }, { opacity: active !== null && active !== index ? 0.45 : 1 }]}
+          >
             <View style={styles.header}>
               <Text style={[styles.label, { color: theme.colors.text }]}>{step.label}</Text>
-              <Text style={[styles.value, { color: theme.colors.textSecondary }]}>
+              <Text style={[styles.value, { color: active === index ? theme.colors.text : theme.colors.textSecondary }]}>
                 {step.value}
+                {active === index ? `  (${Math.round((step.value / max) * 100)}% of top)` : ''}
                 {step.detail ? `  ·  ${step.detail}` : ''}
               </Text>
             </View>
@@ -43,7 +52,7 @@ export function FunnelChart({ steps }: { steps: FunnelStep[] }) {
             {conversion !== null ? (
               <Text style={[styles.conversion, { color: theme.colors.textFaint }]}>↓ {conversion}% continue</Text>
             ) : null}
-          </View>
+          </Pressable>
         );
       })}
     </View>
@@ -89,6 +98,7 @@ function FunnelBar({ ratio, color, index }: { ratio: number; color: string; inde
 }
 
 const styles = StyleSheet.create({
+  row: { paddingHorizontal: 8, paddingVertical: 6, marginHorizontal: -8, borderRadius: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
   label: { fontSize: 13, fontWeight: '700' },
   value: { fontSize: 12, fontWeight: '600' },

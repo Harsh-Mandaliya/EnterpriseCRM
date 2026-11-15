@@ -131,7 +131,8 @@ export function TeamActivityScreen({ navigation, route }: Props) {
   }, [filtered]);
 
   const openTarget = (e: WorkLogEntry) => {
-    if (!e.targetId) return;
+    // Employees have no lead, customer or invoice screens.
+    if (!e.targetId || role === 'EMPLOYEE') return;
     if (e.targetType === 'Lead') navigation.navigate('LeadDetail', { leadId: e.targetId, leadName: e.label ?? 'Lead' });
     else if (e.targetType === 'Customer') navigation.navigate('CustomerDetail', { customerId: e.targetId, customerName: e.label ?? 'Customer' });
     else if (e.targetType === 'Invoice') navigation.navigate('InvoiceDetail', { invoiceId: e.targetId });

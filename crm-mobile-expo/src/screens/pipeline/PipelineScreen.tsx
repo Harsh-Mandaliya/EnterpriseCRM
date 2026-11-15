@@ -55,6 +55,8 @@ export function PipelineScreen({ navigation }: Props) {
   const [moving, setMoving] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Stage under the mouse / finger in the "by stage" card.
+  const [hotStage, setHotStage] = useState<OpportunityStage | null>(null);
 
   const load = useCallback(() => dispatch(fetchOpportunities()), [dispatch]);
   useEffect(() => {
@@ -152,30 +154,65 @@ export function PipelineScreen({ navigation }: Props) {
           <Kpi index={3} label="Overdue" value={kpis.overdueCount} icon="alarm-outline" color={kpis.overdueCount > 0 ? theme.colors.danger : theme.colors.textMuted} />
         </View>
 
-        {/* ---------- stage distribution ---------- */}
+        {/* ---------- pipeline by stage ---------- */}
         <FadeInView delay={120} style={styles.padded}>
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Open value by stage</Text>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>Pipeline by stage</Text>
+              <Text style={styles.cardHint}>Tap a stage to see its deals</Text>
+            </View>
             <View style={styles.stackBar} accessibilityLabel="Open value by stage">
               {stages
-                .filter(s => OPEN_STAGES.includes(s.stage) && s.value > 0)
-                .map(s => (
-                  <View key={s.stage} style={{ flex: s.value, backgroundColor: stageColor(theme, s.stage) }} />
+                .filter(st => OPEN_STAGES.includes(st.stage) && st.value > 0)
+                .map(st => (
+                  <View
+                    key={st.stage}
+                    style={{ flex: st.value, backgroundColor: stageColor(theme, st.stage), opacity: hotStage && hotStage !== st.stage ? 0.25 : 1 }}
+                  />
                 ))}
               {kpis.openValue === 0 ? <View style={{ flex: 1, backgroundColor: theme.colors.surfaceAlt }} /> : null}
             </View>
-            <View style={styles.legend}>
-              {stages
-                .filter(s => OPEN_STAGES.includes(s.stage))
-                .map(s => (
-                  <View key={s.stage} style={styles.legendItem}>
-                    <View style={[styles.dot, { backgroundColor: stageColor(theme, s.stage) }]} />
-                    <Text style={styles.legendText}>
-                      {stageLabel(s.stage)} · {formatCompactCurrency(s.value)}
-                    </Text>
+            {stages.map(st => {
+              const open = OPEN_STAGES.includes(st.stage);
+              const color = stageColor(theme, st.stage);
+              const maxValue = Math.max(1, ...stages.map(x => x.value));
+              const hot = hotStage === st.stage;
+              return (
+                <Pressable
+                  key={st.stage}
+                  onHoverIn={() => setHotStage(st.stage)}
+                  onHoverOut={() => setHotStage(null)}
+                  onPressIn={() => setHotStage(st.stage)}
+                  onPressOut={() => setHotStage(null)}
+                  onPress={() => {
+                    setStageFilter(st.stage);
+                    setView('list');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${stageLabel(st.stage)}: ${st.count} deals, ${formatCompactCurrency(st.value)}`}
+                  style={[styles.stageRow, hot && { backgroundColor: theme.colors.surfaceAlt }, { opacity: hotStage && !hot ? 0.5 : 1 }]}
+                >
+                  <View style={styles.stageRowHead}>
+                    <View style={[styles.dot, { backgroundColor: color }]} />
+                    <Text style={styles.stageName}>{stageLabel(st.stage)}</Text>
+                    <View style={[styles.countPill, { backgroundColor: theme.colors.surfaceAlt }]}>
+                      <Text style={styles.countText}>{st.count}</Text>
+                    </View>
+                    <Text style={styles.stageValue}>{formatCompactCurrency(st.value)}</Text>
                   </View>
-                ))}
-            </View>
+                  <View style={[styles.stageTrack, { backgroundColor: theme.colors.surfaceAlt }]}>
+                    <View style={{ width: `${Math.max(st.value > 0 ? 3 : 0, (st.value / maxValue) * 100)}%`, backgroundColor: color, height: hot ? 10 : 8, borderRadius: 5 }} />
+                  </View>
+                  <Text style={styles.stageMeta}>
+                    {open
+                      ? `${kpis.openValue > 0 ? Math.round((st.value / kpis.openValue) * 100) : 0}% of open value · win chance ${Math.round(STAGE_PROBABILITY[st.stage] * 100)}% · forecast ${formatCompactCurrency(st.weighted)}`
+                      : st.stage === 'WON'
+                        ? `Closed and won${kpis.winRate !== null ? ` · win rate ${Math.round(kpis.winRate * 100)}%` : ''}`
+                        : 'Closed and lost'}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </FadeInView>
 
@@ -474,10 +511,15 @@ function makeStyles(theme: Theme) {
       marginBottom: 14,
     },
     cardTitle: { color: theme.colors.text, fontSize: 15, fontWeight: '800', marginBottom: 12 },
-    stackBar: { flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden', gap: 2 },
-    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    legendText: { color: theme.colors.textSecondary, fontSize: 12 },
+    cardHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 },
+    cardHint: { color: theme.colors.textMuted, fontSize: 11, fontWeight: '600' },
+    stageRow: { paddingHorizontal: 8, paddingVertical: 8, marginHorizontal: -8, borderRadius: 10 },
+    stageRowHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+    stageName: { flex: 1, color: theme.colors.text, fontSize: 13, fontWeight: '700' },
+    stageValue: { color: theme.colors.text, fontSize: 13, fontWeight: '800', minWidth: 64, textAlign: 'right' },
+    stageTrack: { height: 10, borderRadius: 5, justifyContent: 'center', overflow: 'hidden' },
+    stageMeta: { color: theme.colors.textMuted, fontSize: 11, marginTop: 5 },
+    stackBar: { flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden', gap: 2, marginBottom: 8 },
     dot: { width: 10, height: 10, borderRadius: 5 },
     column: {
       backgroundColor: theme.colors.surfaceAlt,

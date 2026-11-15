@@ -651,6 +651,9 @@ export async function getMe(
     email: user.email,
     role: user.role,
     avatar: user.avatar ?? null,
+    phone: user.phone ?? '',
+    jobTitle: user.jobTitle ?? '',
+    lastLoginAt: user.lastLoginAt ?? null,
     companyId: user.companyId.toString(),
     createdAt: user.createdAt,
 
@@ -669,4 +672,97 @@ export async function getMe(
 
     authProvider: user.authProvider,
   };
+}
+
+/* ============================================================
+   MY ACCOUNT
+   A user edits only their own details. Role, company and
+   active state are never accepted here (users module, by
+   Owner/Admin only).
+============================================================ */
+
+export async function updateMe(
+  userId: string,
+  input: { name?: string; phone?: string; jobTitle?: string; email?: string; currentPassword?: string },
+) {
+  const user = await User.findById(userId).select('+passwordHash');
+
+  if (!user || !user.isActive) {
+    throw ApiError.notFound('User not found');
+  }
+
+  if (input.email !== undefined && input.email !== user.email) {
+    // The e-mail is the sign-in name: changing it needs the password.
+    if (user.authProvider === 'GOOGLE' || !user.passwordHash) {
+      throw ApiError.badRequest('This account signs in with Google; its e-mail cannot be changed here');
+    }
+    if (!input.currentPassword || !(await comparePassword(input.currentPassword, user.passwordHash))) {
+      throw ApiError.forbidden('Enter your current password to change the e-mail');
+    }
+    if (await User.exists({ email: input.email, _id: { $ne: user._id } })) {
+      throw ApiError.conflict('Email already registered');
+    }
+    user.email = input.email;
+  }
+
+  if (input.name !== undefined) user.name = input.name;
+  if (input.phone !== undefined) user.phone = input.phone;
+  if (input.jobTitle !== undefined) user.jobTitle = input.jobTitle;
+
+  await user.save();
+
+  await audit({
+    companyId: user.companyId.toString(),
+    actorId: userId,
+    action: 'auth.profile_updated',
+    targetType: 'User',
+    targetId: userId,
+  });
+
+  return getMe(userId);
+}
+
+/**
+ * Change password while signed in. Every other session ends;
+ * this device gets a fresh token pair so it stays signed in.
+ */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+) {
+  assertPasswordPolicy(newPassword);
+
+  const user = await User.findById(userId).select('+passwordHash');
+
+  if (!user || !user.isActive) {
+    throw ApiError.notFound('User not found');
+  }
+
+  if (user.authProvider === 'GOOGLE' || !user.passwordHash) {
+    throw ApiError.badRequest('This account signs in with Google and has no password');
+  }
+
+  if (!(await comparePassword(currentPassword, user.passwordHash))) {
+    throw ApiError.forbidden('Current password is incorrect');
+  }
+
+  if (await comparePassword(newPassword, user.passwordHash)) {
+    throw ApiError.badRequest('New password must be different from the current one');
+  }
+
+  user.passwordHash = await hashPassword(newPassword);
+  await user.save();
+
+  await logoutAll(userId);
+
+  await audit({
+    companyId: user.companyId.toString(),
+    actorId: userId,
+    action: 'auth.password_changed',
+    targetType: 'User',
+    targetId: userId,
+  });
+
+  return issueTokenPair(tokenSubject(user));
 }
