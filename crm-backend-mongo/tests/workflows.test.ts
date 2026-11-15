@@ -382,3 +382,36 @@ describe('CSV import and export', () => {
     assert.equal((await client.post('/leads/import', { csv: 'name\n' }, owner.accessToken)).status, 400);
   });
 });
+
+describe('invoice numbers', () => {
+  test('follow the highest number, not the newest date, and never collide', async () => {
+    const { Invoice } = await import('@/models');
+    const owner = await registerCompany(client, 'Numbering Traders');
+    const customer = await client.post('/customers', { name: 'Number Buyer' }, owner.accessToken);
+    const create = () =>
+      client.post(
+        '/invoices',
+        { customerId: customer.body.id, lineItems: [{ description: 'Item', quantity: 1, unitPrice: 100 }], dueDate: new Date(Date.now() + 864e5).toISOString() },
+        owner.accessToken,
+      );
+
+    const first = await create();
+    const second = await create();
+    assert.deepEqual([first.body.invoiceNumber, second.body.invoiceNumber], ['INV-0001', 'INV-0002']);
+
+    // Back-date the latest invoice (as an import or the demo data does): INV-0001 is now "newest".
+    await Invoice.collection.updateOne({ invoiceNumber: 'INV-0002', companyId: (await Invoice.findById(second.body.id))!.companyId }, { $set: { createdAt: new Date('2020-01-01') } });
+    const third = await create();
+    assert.equal(third.status, 201, JSON.stringify(third.body));
+    assert.equal(third.body.invoiceNumber, 'INV-0003');
+
+    // Saved at the same moment: both succeed with different numbers.
+    const [a, b] = await Promise.all([create(), create()]);
+    assert.deepEqual([a.status, b.status], [201, 201]);
+    assert.notEqual(a.body.invoiceNumber, b.body.invoiceNumber);
+
+    // Numbers compare as numbers once they pass four digits.
+    await Invoice.collection.updateOne({ _id: (await Invoice.findById(a.body.id))!._id }, { $set: { invoiceNumber: 'INV-10000' } });
+    assert.equal((await create()).body.invoiceNumber, 'INV-10001');
+  });
+});

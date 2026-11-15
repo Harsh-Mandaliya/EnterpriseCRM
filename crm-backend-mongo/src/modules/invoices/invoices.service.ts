@@ -33,11 +33,13 @@ function withDerivedStatus(doc: any) {
   return json;
 }
 
-// Based on the highest existing number rather than a document count, so
-// deleting an invoice can never make the next number collide.
+// Based on the highest existing number — compared as a number, so INV-10000
+// beats INV-9999 — rather than a count or "the newest by date": deleting or
+// back-dating an invoice can never make the next number collide.
 async function nextInvoiceNumber(companyId: string): Promise<string> {
   const latest = await Invoice.findOne({ companyId, invoiceNumber: /^INV-\d+$/ })
-    .sort({ createdAt: -1, invoiceNumber: -1 })
+    .sort({ invoiceNumber: -1 })
+    .collation({ locale: 'en', numericOrdering: true })
     .select('invoiceNumber')
     .lean();
   const last = latest ? Number(latest.invoiceNumber.slice(4)) : 0;
@@ -80,20 +82,27 @@ export async function createInvoice(
 ) {
   await assertSameCompanyRefs(companyId, { customerId: input.customerId });
   const totals = computeTotals(input.lineItems, input.taxRate ?? 0);
-  const invoiceNumber = await nextInvoiceNumber(companyId);
-  const invoice = await Invoice.create({
-    companyId,
-    createdById,
-    invoiceNumber,
-    customerId: input.customerId,
-    lineItems: input.lineItems,
-    dueDate: new Date(input.dueDate),
-    notes: input.notes,
-    status: 'PENDING',
-    ...totals,
-  });
-  await invoice.populate(POPULATE_CUSTOMER);
-  return withDerivedStatus(invoice);
+  // Two people saving at the same moment can pick the same number; the unique
+  // index rejects the second, which then simply takes the next one.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const invoice = await Invoice.create({
+        companyId,
+        createdById,
+        invoiceNumber: await nextInvoiceNumber(companyId),
+        customerId: input.customerId,
+        lineItems: input.lineItems,
+        dueDate: new Date(input.dueDate),
+        notes: input.notes,
+        status: 'PENDING',
+        ...totals,
+      });
+      await invoice.populate(POPULATE_CUSTOMER);
+      return withDerivedStatus(invoice);
+    } catch (err) {
+      if ((err as { code?: number }).code !== 11000 || attempt >= 3) throw err;
+    }
+  }
 }
 
 export async function updateInvoice(

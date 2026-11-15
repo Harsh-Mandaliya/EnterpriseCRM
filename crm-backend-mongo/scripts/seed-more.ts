@@ -10,8 +10,13 @@
  *
  * Everything is created through the public API as the right user, so it
  * passes the same validation and permission checks as real use. Running
- * it again does nothing (the first extra product's SKU is the marker).
+ * it again adds no second copy (the first extra product's SKU is the marker).
  * Dates are then spread directly in MongoDB, as seed-demo does.
+ *
+ * Every run also makes sure there are sales for TODAY (once per day):
+ * a few deals are created and won, one invoice is paid and some calls are
+ * logged, so "Today's Sales" and "Today's Activity" on the dashboards are
+ * never empty when you demo. Run it again on another day for that day.
  */
 import mongoose, { Types } from 'mongoose';
 
@@ -238,6 +243,56 @@ const list = (body: any): any[] => (Array.isArray(body) ? body : body.items ?? b
 const METHODS = ['UPI', 'CARD', 'CASH', 'BANK_TRANSFER'] as const;
 
 /* ============================================================
+   TODAY'S SALES (runs once per day per company)
+============================================================ */
+
+const TODAY_WINS: [by: Key, amount: number, what: string][] = [
+  ['sales', 86000, 'repeat order'],
+  ['sales', 42500, 'counter sale'],
+  ['sales2', 128000, 'bulk order'],
+  ['manager', 67500, 'key account top-up'],
+];
+
+async function seedToday(x: Extra, tokens: Record<Key, string>) {
+  const stamp = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  const marker = `(${stamp})`;
+  const deals = list(await call('GET', '/opportunities?limit=200', tokens.owner));
+  if (deals.some(d => String(d.title).endsWith(marker))) {
+    console.log(`  today's sales (${stamp}): already present`);
+    return;
+  }
+
+  const customersOf: Partial<Record<Key, any[]>> = {};
+  let invoiced = false;
+  for (const [i, [by, amount, what]] of TODAY_WINS.entries()) {
+    customersOf[by] ??= list(await call('GET', '/customers?limit=50', tokens[by]));
+    const customer = customersOf[by]![i % customersOf[by]!.length];
+    if (!customer) continue;
+
+    // Real flow: open a deal, log the call, then win it.
+    const deal = await call('POST', '/opportunities', tokens[by], { title: `${customer.name} – ${what} ${marker}`, amount, stage: 'NEGOTIATION', customerId: customer.id, closeDate: days(0, 18) });
+    const callLog = await call('POST', '/activities', tokens[by], { type: 'CALL', summary: `Order confirmed on call – ${customer.name}`, customerId: customer.id, dueAt: days(0, 11) });
+    await call('PATCH', `/activities/${callLog.id}/complete`, tokens[by], {});
+    await call('PATCH', `/opportunities/${deal.id}/stage`, tokens[by], { stage: 'WON' });
+
+    // One of today's orders is billed and paid in full straight away.
+    if (!invoiced) {
+      const p = list(await call('GET', '/products', tokens[by]))[0];
+      const invoice = await call('POST', '/invoices', tokens[by], {
+        customerId: customer.id,
+        lineItems: [{ productId: p.id, description: p.name, quantity: 4, unitPrice: p.price }],
+        taxRate: 5,
+        dueDate: days(7),
+        notes: `Today's order ${marker}. Paid on delivery.`,
+      });
+      await call('POST', '/payments', tokens[by], { invoiceId: invoice.id, amount: invoice.total, method: 'UPI', reference: `UTR${Math.floor(1e11 + Math.random() * 9e11)}` });
+      invoiced = true;
+    }
+  }
+  console.log(`  today's sales (${stamp}): +${TODAY_WINS.length} deals won, 1 invoice paid, ${TODAY_WINS.length} calls logged`);
+}
+
+/* ============================================================
    ONE COMPANY
 ============================================================ */
 
@@ -256,6 +311,8 @@ async function seedMore(x: Extra, n: number) {
     console.log('  demo users not found — run "npm run seed:demo" first; skipping');
     return null;
   }
+
+  await seedToday(x, tokens);
 
   const existing = list(await call('GET', '/products', tokens.owner));
   if (existing.some(p => p.sku === x.products[0][1])) {

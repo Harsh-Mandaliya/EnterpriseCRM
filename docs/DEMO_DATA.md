@@ -90,3 +90,7 @@ Adds to **each** company: 4 products, 8 customers, 10 leads (one converted), 8 d
 The tasks are there to try the Employee side and assignment: ten are assigned to the Employee by the Owner, Admin and Manager (six already completed — four on time, two late — so *My score* has real numbers), four are **general team tasks** anyone can pick up (one already completed by the Employee), and the rest belong to sales and managers.
 
 After it, SG Textiles has roughly: 16 customers, 18 leads, 17 deals, 9 products, 12 invoices, 7 payments, 28 tasks and 12 events for the Owner/Admin; the Manager sees 10 / 11 / 11 customers / leads / deals, the two sales reps 7 / 8 / 8 and 6 / 7 / 6, and the Employee no customers, leads, deals or invoices — 16 tasks and 7 events.
+
+### Sales for today
+
+Each run of `npm run seed:more` also checks whether the company already has deals won **today** and, if not, adds four (₹86,000 and ₹42,500 by the first sales rep, ₹1,28,000 by the second, ₹67,500 by the manager — ₹3,24,000 in total), one paid invoice and four logged calls. This keeps "Today's Sales" on the dashboards filled in for a demo; run it on the day you present.

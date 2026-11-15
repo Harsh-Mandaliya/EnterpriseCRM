@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.1 — 2026-11-16 — Today's sales data, Employee layout, invoice numbering fix
+
+### Fixed
+- **Creating an invoice could fail with "A record with this value already exists".** The next invoice number was taken from the most recently *created* invoice instead of the highest number, so a back-dated invoice (an import, or the demo data) made the next number collide. Numbers now follow the highest existing number, compared as a number (INV-10000 comes after INV-9999), and two invoices saved at the same moment each get their own number instead of one failing.
+
+### Changed — Employee home
+- Laid out in fixed sections — **Today**, **Overview**, **My work**, **My performance**, **Quick access** — so it reads the same way every day.
+- *Today* card: what is overdue and due today, how much is finished, with a progress bar.
+- Task rows show the type (call, e-mail, meeting, task) and status tags: Overdue / Today / Upcoming and *Team task*.
+- Schedule rows show the date as a small calendar tile.
+- **My work report (PDF)**: the download button in the header creates a report with open work, completed work (on time / late) and what is coming up.
+
+### Added — demo data
+- `npm run seed:more` now also makes sure there are **sales for today** (once per day, per company): four deals are opened and won by the two sales reps and the manager, one order is invoiced and paid by UPI, and the calls are logged. "Today's Sales", "This Month" and "Today's Activity" on the dashboards are no longer ₹0. Run it again on another day for that day.
+
+### Tests
+- Backend 131 → **132** (`tests/workflows.test.ts`: numbers follow the highest number after back-dating, two simultaneous invoices both succeed, numbers compare as numbers past four digits).
+- App **104 passed**, ESLint clean. Role & isolation script 243/243 and role matrix 335/335 after loading the new data. Browser: Employee home sections, tags and schedule.
+
 ## 1.5.0 — 2026-11-16 — Account details, Employee workspace, chart hover, more demo data
 
 ### Added
